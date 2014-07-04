@@ -32,14 +32,14 @@ urlpatterns = patterns('',
 
 As you can see the second part of the url must always be catched, as it is the username of the resource you want to use:
 
-/principals/foobar/
+``/principals/foobar/``
 
 will be the base for the 'foobar' user, as well as
 
-/principals/foobar/photos/2014/summer/1.jpg
+``/principals/foobar/photos/2014/summer/1.jpg``
 
 will map to the /photos/2014/summer/1.jpg resource for the 'foobar' user, while
 
-/addressbook/foobar
+``/addressbook/foobar``
 
 is the main storage for the CardDAV system (all of the collections will be automatically mapped to an addressbook resource)
