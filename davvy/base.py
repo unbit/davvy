@@ -59,7 +59,9 @@ class WebDAV(View):
 
     def options(self, request, user, resource_name):
         response = HttpResponse()
-        response['Dav'] = ','.join(['1'] + self.dav_extensions)
+        dav_base = ['1']
+        dav_base += getattr(settings, 'DAVVY_EXTENSIONS', [])
+        response['Dav'] = ','.join(dav_base + self.dav_extensions)
         response['Allow'] = ','.join([method.upper() for method in self.http_method_names])
         return response
 
