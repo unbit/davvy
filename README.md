@@ -49,3 +49,23 @@ is the main storage for the CardDAV system (all of the collections will be autom
 The `root` parameter in the class-based-view arguments, is required, and you can see it as the 'disk' containing collections and objects.
 
 Internally, `/principals/foobar/photos/2014/summer/1.jpg` will be mapped to `storage/photos/2014/summer/1.jpg` of the user `foobar`. (a root is created for every user on-demand)
+
+
+Homes set discovery (required for iOS/OSX clients)
+==================================================
+
+Moderns Dav clients, try to automatically discover the home of specific resources.
+
+As an example a CardDAV client could get the home of a principal (see it as a username in Dav slang) addressbook, asking for the ``addressbook-home-set`` property (with a PROPFIND request).
+
+Davvy can be configured to returns such path via Django settings.py:
+
+```py
+DAVVY_CURRENT_USER_PRINCIPAL_BASE = '/principals'
+DAVVY_ADDRESSBOOK_HOME_SET_BASE = '/addressbook'
+DAVVY_CALENDAR_HOME_SET_BASE = '/calendars'
+```
+
+davvy will automatically append /username to every home.
+
+Thanks to this options you will be able to force your client to search for calendars in /calendars/foobar even if it has been configured for /principals/foobar
