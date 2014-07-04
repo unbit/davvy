@@ -43,3 +43,7 @@ will map to the /photos/2014/summer/1.jpg resource for the 'foobar' user, while
 ``/addressbook/foobar``
 
 is the main storage for the CardDAV system (all of the collections will be automatically mapped to an addressbook resource)
+
+The `root` parameter in the class-based-view arguments, is required, and you can see it as the 'disk' containing collections and objects.
+
+Internally, `/principals/foobar/photos/2014/summer/1.jpg` will be mapped to `storage/photos/2014/summer/1.jpg` of the user `foobar`. (a root is created for every user on-demand)
