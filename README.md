@@ -58,7 +58,7 @@ Moderns Dav clients, try to automatically discover the home of specific resource
 
 As an example a CardDAV client could get the home of a principal (see it as a username in Dav slang) addressbook, asking for the ``addressbook-home-set`` property (with a PROPFIND request).
 
-Davvy can be configured to returns such path via Django settings.py:
+Davvy can be configured to return such path via Django settings.py:
 
 ```py
 DAVVY_CURRENT_USER_PRINCIPAL_BASE = '/principals'
@@ -69,3 +69,8 @@ DAVVY_CALENDAR_HOME_SET_BASE = '/calendars'
 davvy will automatically append /username to every home.
 
 Thanks to this options you will be able to force your client to search for calendars in /calendars/foobar even if it has been configured for /principals/foobar
+
+Testing
+=======
+
+The project uses the litmus tool for testing
