@@ -19,12 +19,14 @@ The url regexp must obey to a simple rule:
 ```py
 from davvy.base import WebDAV
 from davvy.addressbook import CardDAV
+from davvy.calendar import CalDAV
 
 urlpatterns = patterns('',
    
     url(r'^principals/(\w+)/(.*)', WebDAV.as_view(root='storage')),
     url(r'^storage/(\w+)/(.*)', WebDAV.as_view(root='storage')),
     url(r'^addressbook/(\w+)/(.*)', CardDAV.as_view(root='addressbook001')),
+    url(r'^calendars/(\w+)/(.*)', CalDAV.as_view(root='calendars')),
 
     url(r'^admin/', include(admin.site.urls)),
 )
