@@ -266,7 +266,11 @@ class WebDAV(View):
         response_props = resource.properties(self, request, requested_props)
         multistatus_response = etree.Element('{DAV:}response')
         multistatus_response_href = etree.Element('{DAV:}href')
-        multistatus_response_href.text = href 
+        try:
+            scheme = request.scheme
+        except:
+            scheme = request.META['wsgi.url_scheme']
+        multistatus_response_href.text = scheme + '://' + request.META['HTTP_HOST'] + href 
         multistatus_response.append(multistatus_response_href)
         for prop in response_props:
             propstat = etree.Element('{DAV:}propstat')
@@ -280,7 +284,8 @@ class WebDAV(View):
                 for item in value:
                     prop_element_item.append(item)
             else:
-                prop_element_item.text = value
+                if value != '':
+                    prop_element_item.text = value
             prop_element.append(prop_element_item)
             propstat.append(prop_element)
             propstat_status = etree.Element('{DAV:}status')
@@ -315,7 +320,7 @@ class WebDAV(View):
         except:
             raise davvy.exceptions.BadRequest()
 
-        #print etree.tostring(dom, pretty_print=True)
+        print etree.tostring(dom, pretty_print=True)
 
         requested_props = []
         props = dom.find('{DAV:}prop')
@@ -385,8 +390,6 @@ class WebDAV(View):
 
 def prop_dav_resourcetype(dav, request, resource):
     if resource.collection:
-        #if not resource.parent:
-        #    return davvy.xml_node('{DAV:}collection')
         if isinstance(dav.collection_type, list):
             rtypes = []
             for rtype in dav.collection_type:
@@ -394,6 +397,7 @@ def prop_dav_resourcetype(dav, request, resource):
             print rtypes
             return rtypes
         return davvy.xml_node(dav.collection_type)
+    return ''
 
 def prop_dav_getcontentlength(dav, request, resource):
     if not resource.collection:
@@ -408,6 +412,7 @@ def prop_dav_getetag(dav, request, resource):
 def prop_dav_getcontenttype(dav, request, resource):
     if not resource.collection:
         return resource.content_type
+    return 'httpd/unix-directory'
 
 def prop_dav_getlastmodified(dav, request, resource):
     return http_date(int(resource.updated_at.strftime('%s')))

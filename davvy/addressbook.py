@@ -6,7 +6,7 @@ from lxml import etree
 
 class CardDAV(WebDAV):
 
-    collection_type = ['{DAV:}collection', '{urn:ietf:params:xml:ns:carddav}addressbook']
+    collection_type = ['{urn:ietf:params:xml:ns:carddav}addressbook', '{DAV:}collection']
     dav_extensions = ['addressbook']
 
     def __init__(self, **kwargs):
@@ -19,9 +19,13 @@ class CardDAV(WebDAV):
         return super(CardDAV, self).put(request, user, resource_name)
 
     def _multiget_response(self, request, resource, href):
+        try:
+            scheme = request.scheme
+        except:
+            scheme = request.META['wsgi.url_scheme']
         # temp hack, we need to find a better solution
         multistatus_response = davvy.xml_node('{DAV:}response')
-        multistatus_response_href = davvy.xml_node('{DAV:}href', href)
+        multistatus_response_href = davvy.xml_node('{DAV:}href', scheme + '://' + request.META['HTTP_HOST'] + href)
         multistatus_response.append(multistatus_response_href)
         # add properties
         multistatus_response_propstat = davvy.xml_node('{DAV:}propstat')
@@ -30,8 +34,13 @@ class CardDAV(WebDAV):
         multistatus_response_propstat_prop_address_data = davvy.xml_node('{urn:ietf:params:xml:ns:carddav}address-data', resource.file.read())
         multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_address_data)
         # contenttype
-        multistatus_response_propstat_prop_get_contenttype = davvy.xml_node('{DAV:}contenttype', resource.content_type)
+        multistatus_response_propstat_prop_get_contenttype = davvy.xml_node('{DAV:}getcontenttype', resource.content_type)
         multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_get_contenttype)
+
+        # contenttype
+        multistatus_response_propstat_prop_getetag = davvy.xml_node('{DAV:}getetag', str(resource.updated_at.strftime('%s')))
+        multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_getetag)
+
         # add status
         multistatus_response_propstat_status = davvy.xml_node('{DAV:}status', request.META['SERVER_PROTOCOL'] + ' 200 OK')
         multistatus_response_propstat.append(multistatus_response_propstat_status)
@@ -52,16 +61,22 @@ class CardDAV(WebDAV):
 
         print etree.tostring(dom, pretty_print=True)
 
-        if dom.tag != '{urn:ietf:params:xml:ns:carddav}addressbook-multiget':
-            raise davvy.exceptions.BadRequest()
-
         doc = etree.Element('{DAV:}multistatus')
 
-        hrefs = dom.iterfind('{DAV:}href')
-        for href in hrefs:
-            resource = davvy.get_resource(request.user, self.root, href.text[len(request.path):])
-            if not resource.collection:
-                doc.append(self._multiget_response(request, resource, href.text))
+        if dom.tag == '{urn:ietf:params:xml:ns:carddav}addressbook-multiget':
+            hrefs = dom.iterfind('{DAV:}href')
+            for href in hrefs:
+                resource = davvy.get_resource(request.user, self.root, href.text[len(request.path):])
+                if not resource.collection:
+                    doc.append(self._multiget_response(request, resource, href.text))
+
+        elif dom.tag in ('{urn:ietf:params:xml:ns:carddav}addressbook-query', '{DAV:}sync-collection'):
+            for child in resource.resource_set.all():
+                doc.append(self._multiget_response(request, child, request.path.rstrip('/') + '/' + child.name)) 
+        else:
+            raise davvy.exceptions.BadRequest()
+
+        print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
         response.status_code = 207
@@ -78,12 +93,30 @@ def prop_dav_addressbook_home_set(dav, request, resource):
             yield davvy.xml_node('{DAV:}href', current_user_principal.rstrip('/') + '/' + request.user.username)
 
 def prop_dav_supported_report_set(dav, request, resource):
+    supported_reports = []
+
     supported_report = davvy.xml_node('{DAV:}supported-report')
     report = davvy.xml_node('{DAV:}report')
     supported_report.append(report)
     addressbook_multiget = davvy.xml_node('{urn:ietf:params:xml:ns:carddav}addressbook-multiget')
     report.append(addressbook_multiget)
-    return supported_report
+    supported_reports.append(supported_report)
+
+    supported_report = davvy.xml_node('{DAV:}supported-report')
+    report = davvy.xml_node('{DAV:}report')
+    supported_report.append(report)
+    addressbook_query = davvy.xml_node('{urn:ietf:params:xml:ns:carddav}addressbook-query')
+    report.append(addressbook_query)
+    supported_reports.append(supported_report)
+
+    supported_report = davvy.xml_node('{DAV:}supported-report')
+    report = davvy.xml_node('{DAV:}report')
+    supported_report.append(report)
+    sync_collection = davvy.xml_node('{DAV:}sync-collection')
+    report.append(sync_collection)
+    supported_reports.append(supported_report)
+
+    return supported_reports
 
 davvy.register_prop('{urn:ietf:params:xml:ns:carddav}addressbook-home-set', prop_dav_addressbook_home_set, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}supported-report-set', prop_dav_supported_report_set, davvy.exceptions.Forbidden)
