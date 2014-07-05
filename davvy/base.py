@@ -29,6 +29,7 @@ class WebDAV(View):
 
     @csrf_exempt
     def dispatch(self, request, username, *args, **kwargs):
+        print request.META
         user = None
         # REMOTE_USER should be always honoured
         if request.META.has_key('REMOTE_USER'):
@@ -314,12 +315,16 @@ class WebDAV(View):
         except:
             raise davvy.exceptions.BadRequest()
 
+        #print etree.tostring(dom, pretty_print=True)
+
         requested_props = []
         props = dom.find('{DAV:}prop')
         if props is None: props = []
         for prop in props:
             requested_props.append(prop.tag)
         depth = request.META.get('HTTP_DEPTH', 'infinity')
+
+        print "DEPTH", depth
 
         doc = etree.Element('{DAV:}multistatus')
 
@@ -332,7 +337,7 @@ class WebDAV(View):
                 multistatus_response = self._propfind_response(request, request.path.rstrip('/') + '/' + resource.name, resource, requested_props)
                 doc.append(multistatus_response)           
 
-        #print etree.tostring(doc, pretty_print=True)
+        print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
         response.status_code = 207
@@ -380,6 +385,8 @@ class WebDAV(View):
 
 def prop_dav_resourcetype(dav, request, resource):
     if resource.collection:
+        #if not resource.parent:
+        #    return davvy.xml_node('{DAV:}collection')
         if isinstance(dav.collection_type, list):
             rtypes = []
             for rtype in dav.collection_type:
@@ -446,3 +453,4 @@ davvy.register_prop('{DAV:}creationdate', prop_dav_creationdate, davvy.exception
 davvy.register_prop('{DAV:}current-user-principal', prop_dav_current_user_principal, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}current-user-privilege-set', prop_dav_current_user_privilege_set, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}acl', prop_dav_acl, davvy.exceptions.Forbidden)
+davvy.register_prop('{DAV:}sync-token', prop_dav_getetag, davvy.exceptions.Forbidden)

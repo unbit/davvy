@@ -18,9 +18,8 @@ class CardDAV(WebDAV):
             return HttpResponseForbidden()
         return super(CardDAV, self).put(request, user, resource_name)
 
-    def _multiget_response(self, request, href):
+    def _multiget_response(self, request, resource, href):
         # temp hack, we need to find a better solution
-        resource = davvy.get_resource(request.user, self.root, href[len(request.path):])
         multistatus_response = davvy.xml_node('{DAV:}response')
         multistatus_response_href = davvy.xml_node('{DAV:}href', href)
         multistatus_response.append(multistatus_response_href)
@@ -51,6 +50,8 @@ class CardDAV(WebDAV):
         except:
             raise davvy.exceptions.BadRequest()
 
+        print etree.tostring(dom, pretty_print=True)
+
         if dom.tag != '{urn:ietf:params:xml:ns:carddav}addressbook-multiget':
             raise davvy.exceptions.BadRequest()
 
@@ -58,7 +59,9 @@ class CardDAV(WebDAV):
 
         hrefs = dom.iterfind('{DAV:}href')
         for href in hrefs:
-            doc.append(self._multiget_response(request, href.text))
+            resource = davvy.get_resource(request.user, self.root, href.text[len(request.path):])
+            if not resource.collection:
+                doc.append(self._multiget_response(request, resource, href.text))
 
         response = HttpResponse(etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
         response.status_code = 207
@@ -73,6 +76,14 @@ def prop_dav_addressbook_home_set(dav, request, resource):
                 yield davvy.xml_node('{DAV:}href', base.rstrip('/') + '/' + request.user.username)
         else:
             yield davvy.xml_node('{DAV:}href', current_user_principal.rstrip('/') + '/' + request.user.username)
-    
+
+def prop_dav_supported_report_set(dav, request, resource):
+    supported_report = davvy.xml_node('{DAV:}supported-report')
+    report = davvy.xml_node('{DAV:}report')
+    supported_report.append(report)
+    addressbook_multiget = davvy.xml_node('{urn:ietf:params:xml:ns:carddav}addressbook-multiget')
+    report.append(addressbook_multiget)
+    return supported_report
 
 davvy.register_prop('{urn:ietf:params:xml:ns:carddav}addressbook-home-set', prop_dav_addressbook_home_set, davvy.exceptions.Forbidden)
+davvy.register_prop('{DAV:}supported-report-set', prop_dav_supported_report_set, davvy.exceptions.Forbidden)
