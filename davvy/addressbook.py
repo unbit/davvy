@@ -30,6 +30,9 @@ class CardDAV(WebDAV):
         multistatus_response_propstat.append(multistatus_response_propstat_prop)
         multistatus_response_propstat_prop_address_data = davvy.xml_node('{urn:ietf:params:xml:ns:carddav}address-data', resource.file.read())
         multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_address_data)
+        # contenttype
+        multistatus_response_propstat_prop_get_contenttype = davvy.xml_node('{DAV:}contenttype', resource.content_type)
+        multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_get_contenttype)
         # add status
         multistatus_response_propstat_status = davvy.xml_node('{DAV:}status', request.META['SERVER_PROTOCOL'] + ' 200 OK')
         multistatus_response_propstat.append(multistatus_response_propstat_status)

@@ -329,8 +329,10 @@ class WebDAV(View):
         if depth == '1':
             resources = Resource.objects.filter(parent=resource)
             for resource in resources:
-                multistatus_response = self._propfind_response(request, request.path + resource.name, resource, requested_props)
+                multistatus_response = self._propfind_response(request, request.path.rstrip('/') + '/' + resource.name, resource, requested_props)
                 doc.append(multistatus_response)           
+
+        #print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
         response.status_code = 207
@@ -382,6 +384,7 @@ def prop_dav_resourcetype(dav, request, resource):
             rtypes = []
             for rtype in dav.collection_type:
                 rtypes.append(davvy.xml_node(rtype))
+            print rtypes
             return rtypes
         return davvy.xml_node(dav.collection_type)
 
@@ -419,6 +422,21 @@ def prop_dav_current_user_privilege_set(dav, request, resource):
     write.append(davvy.xml_node('{DAV:}write'))
     return write
 
+def prop_dav_acl(dav, request, resource):
+    ace = davvy.xml_node('{DAV:}ace')
+    ace_principal = davvy.xml_node('{DAV:}principal')
+    ace_principal.append(davvy.xml_node('{DAV:}all'))
+    #principals = prop_dav_current_user_principal(dav, request, resource)
+    #for principal in principals:
+    #    ace_principal.append(principal)
+    ace.append(ace_principal)
+    grant = davvy.xml_node('{DAV:}grant')
+    privilege = davvy.xml_node('{DAV:}privilege')
+    privilege.append(davvy.xml_node('{DAV:}write'))
+    grant.append(privilege)
+    ace.append(grant)
+    return ace
+
 davvy.register_prop('{DAV:}resourcetype', prop_dav_resourcetype, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}getcontentlength', prop_dav_getcontentlength, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}getetag', prop_dav_getetag, davvy.exceptions.Forbidden)
@@ -427,3 +445,4 @@ davvy.register_prop('{DAV:}getlastmodified', prop_dav_getlastmodified, davvy.exc
 davvy.register_prop('{DAV:}creationdate', prop_dav_creationdate, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}current-user-principal', prop_dav_current_user_principal, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}current-user-privilege-set', prop_dav_current_user_privilege_set, davvy.exceptions.Forbidden)
+davvy.register_prop('{DAV:}acl', prop_dav_acl, davvy.exceptions.Forbidden)
