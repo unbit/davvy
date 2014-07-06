@@ -104,7 +104,7 @@ class CalDAV(WebDAV):
         elif dom.tag == '{urn:ietf:params:xml:ns:caldav}calendar-multiget':
             hrefs = dom.iterfind('{DAV:}href')
             for href in hrefs:
-                child = davvy.get_resource(request.user, self.root, resource.name + '/' + href.text[len(request.path):].lstrip('/'))
+                child = davvy.get_resource(request.user, self.root, href.text[len(request.path):])
                 doc.append(self._multiget_response(request, child, request.path.rstrip('/') + '/' + child.name))
         else:
             raise davvy.exceptions.BadRequest()
