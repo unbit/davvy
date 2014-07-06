@@ -6,7 +6,8 @@ from lxml import etree
 
 class CalDAV(WebDAV):
 
-    collection_type = ['{urn:ietf:params:xml:ns:caldav}calendar', '{DAV:}collection']
+    #collection_type = ['{urn:ietf:params:xml:ns:caldav}calendar', '{DAV:}collection']
+    subcollection_type = ['{urn:ietf:params:xml:ns:caldav}calendar', '{DAV:}collection']
     dav_extensions = ['calendar-access','calendar']
 
     def __init__(self, **kwargs):
@@ -55,6 +56,7 @@ class CalDAV(WebDAV):
             scheme = request.META['wsgi.url_scheme']
         multistatus_response = davvy.xml_node('{DAV:}' + report_type)
         # temp hack, we need to find a better solution
+        if resource.collection: href = href.rstrip('/') + '/'
         multistatus_response_href = davvy.xml_node('{DAV:}href', scheme + '://' + request.META['HTTP_HOST'] + href)
         multistatus_response.append(multistatus_response_href)
         # add properties
@@ -69,6 +71,10 @@ class CalDAV(WebDAV):
             # contenttype
             multistatus_response_propstat_prop_getetag = davvy.xml_node('{DAV:}getetag', str(resource.updated_at.strftime('%s')))
             multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_getetag)
+        else:
+            multistatus_response_propstat_prop_get_contenttype = davvy.xml_node('{DAV:}getcontenttype', 'httpd/unix-directory')
+            multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_get_contenttype)
+        
             
         # add status
         multistatus_response_propstat_status = davvy.xml_node('{DAV:}status', request.META['SERVER_PROTOCOL'] + ' 200 OK')
@@ -79,6 +85,10 @@ class CalDAV(WebDAV):
         return multistatus_response
 
 
+    def get_href(self, href, resource_name):
+        # find first occurrence of resource_name
+        pos = href.find(resource_name)
+        return href[pos:] 
 
     def report(self, request, user, resource_name):
         resource = davvy.get_resource(request.user, self.root, resource_name)
@@ -104,8 +114,8 @@ class CalDAV(WebDAV):
         elif dom.tag == '{urn:ietf:params:xml:ns:caldav}calendar-multiget':
             hrefs = dom.iterfind('{DAV:}href')
             for href in hrefs:
-                child = davvy.get_resource(request.user, self.root, href.text[len(request.path):])
-                doc.append(self._multiget_response(request, child, request.path.rstrip('/') + '/' + child.name))
+                child = davvy.get_resource(request.user, self.root, self.get_href(href.text, resource_name))
+                doc.append(self._multiget_response(request, child, href.text))
         else:
             raise davvy.exceptions.BadRequest()
 
@@ -121,9 +131,9 @@ def prop_dav_calendar_home_set(dav, request, resource):
     if current_user_principal is not None:
         if isinstance(current_user_principal, list) or isinstance(current_user_principal, tuple):
             for base in current_user_principal:
-                yield davvy.xml_node('{DAV:}href', base.rstrip('/') + '/' + request.user.username)
+                yield davvy.xml_node('{DAV:}href', base.rstrip('/') + '/' + request.user.username + '/')
         else:
-            yield davvy.xml_node('{DAV:}href', current_user_principal.rstrip('/') + '/' + request.user.username)
+            yield davvy.xml_node('{DAV:}href', current_user_principal.rstrip('/') + '/' + request.user.username + '/')
 
 def prop_dav_calendar_getctag(dav, request, resource):
     max_value = int(resource.updated_at.strftime('%s'))
@@ -133,7 +143,29 @@ def prop_dav_calendar_getctag(dav, request, resource):
             if new_value > max_value:
                 max_value = new_value
     return str(max_value)
+
+def prop_dav_calendar_user_address_set(dav, request, resource):
+    yield davvy.xml_node('{DAV:}href', 'mailto:'+request.user.email)
+
+def prop_dav_supported_calendar_component_set(dav, request, resource):
+    componenets = []
+
+    vevent = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}comp')
+    vevent.attrib['name'] = 'VEVENT'
+    components.append(vevent)
+
+    vtodo = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}comp')
+    vtodo.attrib['name'] = 'VTODO'
+    components.append(vtodo)
+
+    vjournal = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}comp')
+    vjournal.attrib['name'] = 'VJOURNAL'
+    components.append(vjournal)
+
+    return vevent
     
 
 davvy.register_prop('{urn:ietf:params:xml:ns:caldav}calendar-home-set', prop_dav_calendar_home_set, davvy.exceptions.Forbidden)
 davvy.register_prop('{http://calendarserver.org/ns/}getctag', prop_dav_calendar_getctag, davvy.exceptions.Forbidden)
+davvy.register_prop('{urn:ietf:params:xml:ns:caldav}calendar-user-address-set', prop_dav_calendar_user_address_set, davvy.exceptions.Forbidden)
+davvy.register_prop('{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set', prop_dav_supported_calendar_component_set, davvy.exceptions.Forbidden)

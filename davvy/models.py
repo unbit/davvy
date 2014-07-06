@@ -20,8 +20,8 @@ class Resource(models.Model):
     parent = models.ForeignKey('Resource',null=True,blank=True)
     name = models.CharField(max_length=255)
     collection = models.BooleanField(default=False)
-    file = models.FileField(upload_to=_upload_path,storage=FileSystemStorage(settings.DAVVY_STORAGE_PATH))
-    content_type = models.CharField(max_length=255)
+    file = models.FileField(upload_to=_upload_path,storage=FileSystemStorage(settings.DAVVY_STORAGE_PATH),blank=True,null=True)
+    content_type = models.CharField(max_length=255,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     size = models.BigIntegerField(default=0)
@@ -76,6 +76,14 @@ class Resource(models.Model):
                prop.is_xml = True
            prop.save()
        return self.get_prop(dav, request, name)
+
+    @property
+    def displayname(self):
+        try:
+            prop = self.prop_set.get(name='{DAV:}displayname')
+            return prop.value
+        except:
+            return ''
 
     def properties(self, dav, request, requested_props):
         propstat = []

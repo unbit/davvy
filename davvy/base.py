@@ -21,6 +21,7 @@ class WebDAV(View):
     http_method_names = ['get', 'put', 'propfind', 'delete', 'head', 'options', 'mkcol', 'proppatch', 'copy', 'move']
 
     collection_type = '{DAV:}collection'
+    subcollection_type = None
 
     # add your OPTIONS Dav header extensions here
     dav_extensions = []
@@ -29,7 +30,6 @@ class WebDAV(View):
 
     @csrf_exempt
     def dispatch(self, request, username, *args, **kwargs):
-        print request.META
         user = None
         # REMOTE_USER should be always honoured
         if request.META.has_key('REMOTE_USER'):
@@ -45,7 +45,11 @@ class WebDAV(View):
             login(request, user)
             request.user = user
             try:
-                return super(WebDAV, self).dispatch(request, username, *args, **kwargs)
+                response = super(WebDAV, self).dispatch(request, username, *args, **kwargs)
+                dav_base = ['1']
+                dav_base += getattr(settings, 'DAVVY_EXTENSIONS', [])
+                response['Dav'] = ','.join(dav_base + self.dav_extensions)
+                return response
             except davvy.exceptions.DavException as e:
                 code, phrase = e.status.split(' ', 1)
                 response = HttpResponse(phrase, content_type='text/plain')
@@ -60,9 +64,6 @@ class WebDAV(View):
 
     def options(self, request, user, resource_name):
         response = HttpResponse()
-        dav_base = ['1']
-        dav_base += getattr(settings, 'DAVVY_EXTENSIONS', [])
-        response['Dav'] = ','.join(dav_base + self.dav_extensions)
         response['Allow'] = ','.join([method.upper() for method in self.http_method_names])
         return response
 
@@ -266,6 +267,7 @@ class WebDAV(View):
         response_props = resource.properties(self, request, requested_props)
         multistatus_response = etree.Element('{DAV:}response')
         multistatus_response_href = etree.Element('{DAV:}href')
+        if resource.collection: href = href.rstrip('/') + '/'
         try:
             scheme = request.scheme
         except:
@@ -297,6 +299,7 @@ class WebDAV(View):
     def _proppatch_response(self, request, href, resource, requested_props):
         multistatus_response = etree.Element('{DAV:}response')
         multistatus_response_href = etree.Element('{DAV:}href')
+        if resource.collection: href = href.rstrip('/') + '/'
         multistatus_response_href.text = href
         multistatus_response.append(multistatus_response_href)
         for prop in requested_props:
@@ -357,6 +360,8 @@ class WebDAV(View):
         except:
             raise davvy.exceptions.BadRequest()
 
+        print etree.tostring(dom, pretty_print=True)
+
         requested_props = []
 
         for setremove_item in dom:
@@ -382,6 +387,8 @@ class WebDAV(View):
         multistatus_response = self._proppatch_response(request, request.path, resource, requested_props)
         doc.append(multistatus_response)
 
+        print etree.tostring(doc, pretty_print=True)
+
         response = HttpResponse(etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
         response.status_code = 207
         response.reason_phrase = 'Multi-Status'
@@ -390,11 +397,18 @@ class WebDAV(View):
 
 def prop_dav_resourcetype(dav, request, resource):
     if resource.collection:
+        # is it a subcollection ?
+        if resource.parent and dav.subcollection_type is not None:
+            if isinstance(dav.subcollection_type, list):
+                rtypes = []
+                for rtype in dav.subcollection_type:
+                    rtypes.append(davvy.xml_node(rtype))
+                return rtypes
+            return davvy.xml_node(dav.subcollection_type)
         if isinstance(dav.collection_type, list):
             rtypes = []
             for rtype in dav.collection_type:
                 rtypes.append(davvy.xml_node(rtype))
-            print rtypes
             return rtypes
         return davvy.xml_node(dav.collection_type)
     return ''
@@ -425,13 +439,17 @@ def prop_dav_current_user_principal(dav, request, resource):
     if current_user_principal is not None:
         if isinstance(current_user_principal, list) or isinstance(current_user_principal, tuple):
             for base in current_user_principal:
-                yield davvy.xml_node('{DAV:}href', base.rstrip('/') + '/' + request.user.username)
+                yield davvy.xml_node('{DAV:}href', base.rstrip('/') + '/' + request.user.username + '/')
         else:
-            yield davvy.xml_node('{DAV:}href', current_user_principal.rstrip('/') + '/' + request.user.username)
+            yield davvy.xml_node('{DAV:}href', current_user_principal.rstrip('/') + '/' + request.user.username + '/')
 
 def prop_dav_current_user_privilege_set(dav, request, resource):
     write = davvy.xml_node('{DAV:}privilege')
+    write.append(davvy.xml_node('{DAV:}all'))
+    write.append(davvy.xml_node('{DAV:}read'))
     write.append(davvy.xml_node('{DAV:}write'))
+    write.append(davvy.xml_node('{DAV:}write-properties'))
+    write.append(davvy.xml_node('{DAV:}write-content'))
     return write
 
 def prop_dav_acl(dav, request, resource):
@@ -449,6 +467,9 @@ def prop_dav_acl(dav, request, resource):
     ace.append(grant)
     return ace
 
+def prop_dav_owner(dav, request, resource):
+    return prop_dav_current_user_principal(dav, request, resource)
+
 davvy.register_prop('{DAV:}resourcetype', prop_dav_resourcetype, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}getcontentlength', prop_dav_getcontentlength, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}getetag', prop_dav_getetag, davvy.exceptions.Forbidden)
@@ -456,6 +477,8 @@ davvy.register_prop('{DAV:}getcontenttype', prop_dav_getcontenttype, davvy.excep
 davvy.register_prop('{DAV:}getlastmodified', prop_dav_getlastmodified, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}creationdate', prop_dav_creationdate, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}current-user-principal', prop_dav_current_user_principal, davvy.exceptions.Forbidden)
+davvy.register_prop('{DAV:}principal-URL', prop_dav_current_user_principal, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}current-user-privilege-set', prop_dav_current_user_privilege_set, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}acl', prop_dav_acl, davvy.exceptions.Forbidden)
 davvy.register_prop('{DAV:}sync-token', prop_dav_getetag, davvy.exceptions.Forbidden)
+davvy.register_prop('{DAV:}owner', prop_dav_owner, davvy.exceptions.Forbidden)
