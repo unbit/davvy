@@ -24,26 +24,34 @@ class CalDAV(WebDAV):
 
         resource = davvy.get_resource(request.user, self.root, resource_name, create=True, collection=True, strict=True)
 
-        try:
-            dom = etree.fromstring(request.read())
-        except:
-            raise davvy.exceptions.BadRequest()
+        cl = int(request.META.get('CONTENT_LENGTH', '0'))
+        if cl > 0:
+            try:
+                dom = etree.fromstring(request.read())
+            except:
+                raise davvy.exceptions.BadRequest()
 
-        #print etree.tostring(dom, pretty_print=True)
+            print etree.tostring(dom, pretty_print=True)
 
-        for prop in dom.find('{DAV:}set').find('{DAV:}prop'):
-            resource.set_prop(self, request, prop.tag, prop)
+            for prop in dom.find('{DAV:}set').find('{DAV:}prop'):
+                try:
+                    resource.set_prop(self, request, prop.tag, prop)
+                except davvy.exceptions.Forbidden:
+                    pass
 
-   
-        doc = etree.Element('{urn:ietf:params:xml:ns:caldav}mkcalendar-response')
-        doc_propstat = etree.Element('{DAV:}propstat')
-        doc_propstat_status = etree.Element('{DAV:}status')
-        doc_propstat_status.text = request.META['SERVER_PROTOCOL'] + ' 200 OK'
-        doc_propstat.append(doc_propstat_status)
-        doc.append(doc_propstat)
+            print "ready"
+
+            doc = etree.Element('{urn:ietf:params:xml:ns:caldav}mkcalendar-response')
+            doc_propstat = etree.Element('{DAV:}propstat')
+            doc_propstat_status = etree.Element('{DAV:}status')
+            doc_propstat_status.text = request.META['SERVER_PROTOCOL'] + ' 200 OK'
+            doc_propstat.append(doc_propstat_status)
+            doc.append(doc_propstat)
          
 
-        response = HttpResponse(etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
+            response = HttpResponse(etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
+        else:
+            response = HttpResponse()
         response.status_code = 201
         response.reason_phrase = 'Created'
         response['Cache-Control'] = 'no-cache'
