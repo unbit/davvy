@@ -9,7 +9,10 @@ class FSStorage(object):
             self.home = settings.DAVVY_STORAGE_PATH
 
     def store(self, dav, request, resource, chunk_size=32768):
-        filename = os.path.join(self.home, str(resource.user.pk), resource.uuid)
+        directory = os.path.join(self.home, str(resource.user.pk))
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        filename = os.path.join(directory, resource.uuid)
         f = open(filename, 'w')
         cl = long(resource.size)
         while cl > 0:
