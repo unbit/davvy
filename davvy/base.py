@@ -75,7 +75,7 @@ class WebDAV(View):
         return response
 
     def head(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
         if resource.collection:
             return HttpResponseForbidden()
         response = HttpResponse(content_type=resource.content_type)
@@ -84,7 +84,7 @@ class WebDAV(View):
         return response
 
     def get(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
         if resource.collection:
             return HttpResponseForbidden()
         response = StreamingHttpResponse(self.storage.retrieve(self, request, resource), content_type=resource.content_type)
@@ -93,7 +93,7 @@ class WebDAV(View):
         return response
 
     def delete(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
         depth = request.META.get('HTTP_DEPTH', 'infinity')
         # return forbidden if there are still items in the collection and
         # Depth is not 'infinity'
@@ -118,7 +118,7 @@ class WebDAV(View):
      
         
     def move(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
         depth = request.META.get('HTTP_DEPTH', 'infinity')
         overwrite = request.META.get('HTTP_OVERWRITE', 'T')
 
@@ -127,13 +127,13 @@ class WebDAV(View):
         result = davvy.created
 
         try:
-            resource2 = davvy.get_resource(request.user, self.root, destination)
+            resource2 = self.get_resource(request, user, destination)
             if overwrite == 'F':
                 raise davvy.exceptions.PreconditionFailed()
             elif overwrite == 'T':
                 result = davvy.nocontent
         except davvy.exceptions.NotFound:
-            resource2 = davvy.get_resource(request.user, self.root, destination, create=True)
+            resource2 = self.get_resource(request, user, destination, create=True)
 
         # copy the resource
         resource2.collection = resource.collection
@@ -172,13 +172,13 @@ class WebDAV(View):
         result = davvy.created
 
         try:
-            resource2 = davvy.get_resource(request.user, self.root, destination)
+            resource2 = self.get_resource(request, resource.user, destination)
             if overwrite == 'F':
                 raise davvy.exceptions.PreconditionFailed()
             elif overwrite == 'T':
                 result = davvy.nocontent
         except davvy.exceptions.NotFound:
-            resource2 = davvy.get_resource(request.user, self.root, destination, create=True) 
+            resource2 = self.get_resource(request, resource.user, destination, create=True) 
 
         # copy the resource
         resource2.collection = resource.collection
@@ -204,7 +204,7 @@ class WebDAV(View):
         return result
 
     def copy(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
 	overwrite = request.META.get('HTTP_OVERWRITE', 'T')
         depth = request.META.get('HTTP_DEPTH', 'infinity')
  
@@ -219,7 +219,7 @@ class WebDAV(View):
         return result(request) 
 
     def put(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name, create=True)
+        resource = self.get_resource(request, user, resource_name, create=True)
         resource.content_type = request.META.get('CONTENT_TYPE', 'application/octet-stream')
         resource.size = request.META['CONTENT_LENGTH']
         resource.save()
@@ -230,7 +230,7 @@ class WebDAV(View):
         cl = int(request.META.get('CONTENT_LENGTH', '0'))
         if cl > 0:
             raise davvy.exceptions.UnsupportedMediaType()
-        resource = davvy.get_resource(request.user, self.root, resource_name, create=True, collection=True, strict=True) 
+        resource = self.get_resource(request, user, resource_name, create=True, collection=True, strict=True) 
         return davvy.created(request)
 
     def _propfind_response(self, request, href, resource, requested_props):
@@ -286,7 +286,7 @@ class WebDAV(View):
         return multistatus_response
 
     def propfind(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
 
         try:
             dom = etree.fromstring(request.read())
@@ -323,7 +323,7 @@ class WebDAV(View):
         return response
 
     def proppatch(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
 
         try:
             dom = etree.fromstring(request.read())
@@ -363,6 +363,43 @@ class WebDAV(View):
         response.status_code = 207
         response.reason_phrase = 'Multi-Status'
         return response
+
+    def _get_root(self, user):
+        try:
+            resource = Resource.objects.get(name=self.root,user=user,parent=None,collection=True)
+        except:
+            resource = Resource.objects.create(name=self.root,user=user,parent=None,collection=True)
+        return resource
+
+    def get_resource(self, request, user, name, create=False,collection=False, strict=False):
+        resource_user = User.objects.get(username=user)
+        # remove final slashes
+        name = name.rstrip('/')
+        parent = self._get_root(resource_user)
+        if not name: return parent
+        # split the name
+        parts = name.split('/')
+        # skip the last item
+        # on error, returns conflict
+        # returns root in case of '/'
+        for part in parts[:-1]:
+            try:
+                resource_part = Resource.objects.get(user=resource_user,parent=parent,name=part)
+                if not resource_part.collection: raise Resource.DoesNotExist()
+            except Resource.DoesNotExist:
+                raise davvy.exceptions.Conflict()
+            parent = resource_part
+        # now check for the requested item
+        try:
+            resource = Resource.objects.get(user=resource_user,parent=parent,name=parts[-1])
+            if strict and create:
+                raise davvy.exceptions.AlreadyExists()
+        except Resource.DoesNotExist:
+            if create:
+                resource = Resource.objects.create(user=resource_user,parent=parent,name=parts[-1],collection=collection)
+            else:
+                raise davvy.exceptions.NotFound()
+        return resource
 
 
 def prop_dav_resourcetype(dav, request, resource):

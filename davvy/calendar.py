@@ -22,7 +22,7 @@ class CalDAV(WebDAV):
 
     def mkcalendar(self, request, user, resource_name):
 
-        resource = davvy.get_resource(request.user, self.root, resource_name, create=True, collection=True, strict=True)
+        resource = self.get_resource(request, user, resource_name, create=True, collection=True, strict=True)
 
         cl = int(request.META.get('CONTENT_LENGTH', '0'))
         if cl > 0:
@@ -72,7 +72,7 @@ class CalDAV(WebDAV):
         multistatus_response_propstat_prop = davvy.xml_node('{DAV:}prop')
         multistatus_response_propstat.append(multistatus_response_propstat_prop)
         if not resource.collection:
-            multistatus_response_propstat_prop_calendar_data = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}calendar-data', resource.file.read())
+            multistatus_response_propstat_prop_calendar_data = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}calendar-data', ''.join(self.storage.retrieve(self, request, resource)))
             multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_calendar_data)
             multistatus_response_propstat_prop_get_contenttype = davvy.xml_node('{DAV:}getcontenttype', resource.content_type)
             multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_get_contenttype)
@@ -99,7 +99,7 @@ class CalDAV(WebDAV):
         return href[pos:] 
 
     def report(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
 
         try:
             dom = etree.fromstring(request.read())
@@ -122,7 +122,7 @@ class CalDAV(WebDAV):
         elif dom.tag == '{urn:ietf:params:xml:ns:caldav}calendar-multiget':
             hrefs = dom.iterfind('{DAV:}href')
             for href in hrefs:
-                child = davvy.get_resource(request.user, self.root, self.get_href(href.text, resource_name))
+                child = self.get_resource(request, user, self.get_href(href.text, resource_name))
                 doc.append(self._multiget_response(request, child, href.text))
         else:
             raise davvy.exceptions.BadRequest()

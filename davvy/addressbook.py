@@ -31,7 +31,8 @@ class CardDAV(WebDAV):
         multistatus_response_propstat = davvy.xml_node('{DAV:}propstat')
         multistatus_response_propstat_prop = davvy.xml_node('{DAV:}prop')
         multistatus_response_propstat.append(multistatus_response_propstat_prop)
-        multistatus_response_propstat_prop_address_data = davvy.xml_node('{urn:ietf:params:xml:ns:carddav}address-data', resource.file.read())
+        
+        multistatus_response_propstat_prop_address_data = davvy.xml_node('{urn:ietf:params:xml:ns:carddav}address-data', ''.join(self.storage.retrieve(self, request, resource)))
         multistatus_response_propstat_prop.append(multistatus_response_propstat_prop_address_data)
         # contenttype
         multistatus_response_propstat_prop_get_contenttype = davvy.xml_node('{DAV:}getcontenttype', resource.content_type)
@@ -52,7 +53,7 @@ class CardDAV(WebDAV):
 
 
     def report(self, request, user, resource_name):
-        resource = davvy.get_resource(request.user, self.root, resource_name)
+        resource = self.get_resource(request, user, resource_name)
 
         try:
             dom = etree.fromstring(request.read())
@@ -66,7 +67,7 @@ class CardDAV(WebDAV):
         if dom.tag == '{urn:ietf:params:xml:ns:carddav}addressbook-multiget':
             hrefs = dom.iterfind('{DAV:}href')
             for href in hrefs:
-                resource = davvy.get_resource(request.user, self.root, href.text[len(request.path):])
+                resource = self.get_resource(request, user, href.text[len(request.path):])
                 if not resource.collection:
                     doc.append(self._multiget_response(request, resource, href.text))
 
