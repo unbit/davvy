@@ -4,7 +4,7 @@ setup(
     author="Unbit",
     author_email="info@unbit.com",
     name='davvy',
-    version='0.1',
+    version='0.1.1',
     description='A Django application for building WebDAV services',
     url="https://github.com/unbit/davvy",
     license='MIT License',
