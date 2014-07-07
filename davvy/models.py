@@ -1,7 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage
 import uuid
 import os.path
 import davvy
@@ -12,15 +11,14 @@ from lxml import etree
 
 class Resource(models.Model):
 
-    # we use uuid as unique filenames
-    def _upload_path(instance, filename):
-        return os.path.join(str(instance.user.pk), str(uuid.uuid4()))
-   
+    def generate_uuid():
+        return str(uuid.uuid4())
+
     user = models.ForeignKey(User)
     parent = models.ForeignKey('Resource',null=True,blank=True)
     name = models.CharField(max_length=255)
     collection = models.BooleanField(default=False)
-    file = models.FileField(upload_to=_upload_path,storage=FileSystemStorage(settings.DAVVY_STORAGE_PATH),blank=True,null=True)
+    uuid = models.CharField(max_length=36,default=generate_uuid)
     content_type = models.CharField(max_length=255,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -13,6 +13,7 @@ import base64
 import mimetypes
 import types
 from django.conf import settings
+from storage import FSStorage
 
 current_user_principals = []
 
@@ -27,6 +28,12 @@ class WebDAV(View):
     dav_extensions = []
 
     root = None
+    storage = None
+
+    def __init__(self, **kwargs):
+        super(WebDAV, self).__init__(**kwargs)
+        if self.storage is None:
+            self.storage = FSStorage()
 
     @csrf_exempt
     def dispatch(self, request, username, *args, **kwargs):
@@ -72,7 +79,7 @@ class WebDAV(View):
         if resource.collection:
             return HttpResponseForbidden()
         response = HttpResponse(content_type=resource.content_type)
-        response['Content-Length'] = resource.file.size
+        response['Content-Length'] = resource.size
         response['Content-Disposition'] = "attachment; filename=%s" % resource.name
         return response
 
@@ -80,8 +87,8 @@ class WebDAV(View):
         resource = davvy.get_resource(request.user, self.root, resource_name)
         if resource.collection:
             return HttpResponseForbidden()
-        response = StreamingHttpResponse(FileWrapper(resource.file), content_type=resource.content_type)
-        response['Content-Length'] = resource.file.size 
+        response = StreamingHttpResponse(self.storage.retrieve(self, request, resource), content_type=resource.content_type)
+        response['Content-Length'] = resource.size 
         response['Content-Disposition'] = "attachment; filename=%s" % resource.name
         return response
 
@@ -130,7 +137,7 @@ class WebDAV(View):
 
         # copy the resource
         resource2.collection = resource.collection
-        resource2.file = resource.file
+        resource2.uuid = resource.uuid
         resource2.size = resource.size
         resource2.content_type = resource.content_type
         resource2.created_at = resource.created_at
@@ -175,7 +182,7 @@ class WebDAV(View):
 
         # copy the resource
         resource2.collection = resource.collection
-        resource2.file = resource.file
+        resource2.uuid = resource.uuid
         resource2.size = resource.size
         resource2.content_type = resource.content_type
         resource2.created_at = resource.created_at
@@ -211,49 +218,12 @@ class WebDAV(View):
 
         return result(request) 
 
-    def _file_from_put(self, request, filename):
-        upload_handlers = request.upload_handlers
-        content_type = request.META.get('CONTENT_TYPE', None)
-        if not content_type:
-            content_type, encoding = mimetypes.guess_type(filename)
-        if not content_type:
-            content_type = 'application/octet-stream'
-        content_length = request.META['CONTENT_LENGTH']
-        for handler in upload_handlers:
-            result = handler.handle_raw_input(None, request.META, content_length, None, None)
-            if result is not None:
-                return result[1], content_type
-        possible_sizes = [x.chunk_size for x in upload_handlers if x.chunk_size]
-        chunk_size = min([64 * 1024 * 1024] + possible_sizes)
-        chunks = ChunkIter(request, chunk_size) 
-        counters = [0] * len(upload_handlers)
-        for handler in upload_handlers:
-            try:
-                handler.new_file(None, filename, content_type,
-                                 content_length, None)
-            except StopFutureHandlers:
-                break
-
-        for chunk in chunks:
-            for i, handler in enumerate(upload_handlers):
-                chunk_length = len(chunk)
-                chunk = handler.receive_data_chunk(chunk, counters[i])
-                counters[i] += chunk_length
-                if chunk is None:
-                    break
-
-        for i, handler in enumerate(upload_handlers):
-            file_obj = handler.file_complete(counters[i])
-            if file_obj: return file_obj, content_type
-
-        raise Exception('unable to get file handle from PUT request')
-
-
     def put(self, request, user, resource_name):
         resource = davvy.get_resource(request.user, self.root, resource_name, create=True)
-        resource.file, resource.content_type = self._file_from_put(request, resource.name)
-        resource.size = resource.file.size
+        resource.content_type = request.META.get('CONTENT_TYPE', 'application/octet-stream')
+        resource.size = request.META['CONTENT_LENGTH']
         resource.save()
+        self.storage.store(self, request, resource)
         return davvy.created(request)
 
     def mkcol(self, request, user, resource_name):
