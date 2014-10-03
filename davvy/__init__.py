@@ -7,6 +7,7 @@ from django.http import HttpResponse
 props_get = {}
 props_set = {}
 
+
 def register_prop(name, handler_get, handler_set):
     """
     register a property handler
@@ -17,10 +18,12 @@ def register_prop(name, handler_get, handler_set):
     if handler_set:
         props_set[name] = handler_set
 
+
 def xml_node(name, value=None):
     x = etree.Element(name)
     x.text = value
     return x
+
 
 def created(request):
     response = HttpResponse('Created', content_type='text/plain')
@@ -28,6 +31,7 @@ def created(request):
     response.reason_phrase = 'Created'
     response['Cache-Control'] = 'no-cache'
     return response
+
 
 def nocontent(request):
     response = HttpResponse('No Content', content_type='text/plain')
