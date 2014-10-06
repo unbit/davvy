@@ -1,6 +1,4 @@
-from davvy.models import Resource, Prop
 from lxml import etree
-import davvy.exceptions
 from django.http import HttpResponse
 
 # global variables used for storing props callables and handlers
