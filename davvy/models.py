@@ -1,8 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.conf import settings
 import uuid
-import os.path
 import davvy
 import davvy.exceptions
 from lxml import etree
