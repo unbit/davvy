@@ -7,10 +7,7 @@ import davvy
 from lxml import etree
 from django.utils.http import http_date
 from davvy.models import Resource
-from django.http.multipartparser import ChunkIter
-from django.core.servers.basehttp import FileWrapper
 import base64
-import mimetypes
 import types
 from django.conf import settings
 from storage import FSStorage
@@ -41,10 +38,10 @@ class WebDAV(View):
     def dispatch(self, request, username, *args, **kwargs):
         user = None
         # REMOTE_USER should be always honoured
-        if request.META.has_key('REMOTE_USER'):
+        if 'REMOTE_USER' in request.META:
             user = User.objects.get(username=request.META['REMOTE_USER'])
             login(request, user)
-        elif request.META.has_key('HTTP_AUTHORIZATION'):
+        elif 'HTTP_AUTHORIZATION' in request.META:
             auth = request.META['HTTP_AUTHORIZATION'].split()
             if len(auth) == 2:
                 if auth[0].lower() == "basic":
