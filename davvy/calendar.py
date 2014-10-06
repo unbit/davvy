@@ -183,7 +183,7 @@ def prop_dav_calendar_user_address_set(dav, request, resource):
 
 
 def prop_dav_supported_calendar_component_set(dav, request, resource):
-    componenets = []
+    components = []
 
     vevent = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}comp')
     vevent.attrib['name'] = 'VEVENT'
