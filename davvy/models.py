@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 import uuid
 import davvy
 import davvy.exceptions
@@ -14,6 +14,7 @@ class Resource(models.Model):
         return str(uuid.uuid4())
 
     user = models.ForeignKey(User)
+    groups = models.ManyToManyField(Group, null=True)
     parent = models.ForeignKey('Resource', null=True, blank=True)
     name = models.CharField(max_length=255)
     collection = models.BooleanField(default=False)
