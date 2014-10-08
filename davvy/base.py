@@ -16,8 +16,8 @@ from django.core.exceptions import ObjectDoesNotExist
 
 current_user_principals = []
 
-# import logging
-# logger = logging.getLogger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 
 class WebDAV(View):
@@ -65,7 +65,8 @@ class WebDAV(View):
             request.user = user
             try:
                 response = super(WebDAV, self).dispatch(
-                    request, username, *args, **kwargs)
+                    request, username, *args, **kwargs
+                )
                 dav_base = ['1']
                 dav_base += getattr(settings, 'DAVVY_EXTENSIONS', [])
                 response['Dav'] = ','.join(dav_base + self.dav_extensions)
@@ -85,7 +86,8 @@ class WebDAV(View):
     def options(self, request, user, resource_name):
         response = HttpResponse()
         response['Allow'] = ','.join(
-            [method.upper() for method in self.http_method_names])
+            [method.upper() for method in self.http_method_names]
+        )
         return response
 
     def head(self, request, user, resource_name):
@@ -350,14 +352,13 @@ class WebDAV(View):
                 groups=request.user.groups.all())
 
             for resource in resources:
-
                 multistatus_response = self._propfind_response(
                     request,
                     sub(
                         r"%s$" % (user),
-                        "%s/" % (resource.user),
+                        "%s" % (resource.user),
                         request.path.rstrip("/")
-                    ) + resource.name,
+                    ) + "/" + resource.name,
                     resource,
                     requested_props
                 )
@@ -382,7 +383,7 @@ class WebDAV(View):
         except:
             raise davvy.exceptions.BadRequest()
 
-        print etree.tostring(dom, pretty_print=True)
+        # print etree.tostring(dom, pretty_print=True)
 
         requested_props = []
 
@@ -411,7 +412,7 @@ class WebDAV(View):
             request, request.path, resource, requested_props)
         doc.append(multistatus_response)
 
-        print etree.tostring(doc, pretty_print=True)
+        # print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
