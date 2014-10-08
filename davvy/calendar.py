@@ -13,7 +13,8 @@ class CalDAV(WebDAV):
     dav_extensions = ['calendar-access', 'calendar']
 
     def __init__(self, **kwargs):
-        self.http_method_names = WebDAV.http_method_names + ['mkcalendar', 'report']
+        self.http_method_names = WebDAV.http_method_names + \
+            ['mkcalendar', 'report']
         super(CalDAV, self).__init__(**kwargs)
 
     def put(self, request, user, resource_name):
@@ -33,7 +34,7 @@ class CalDAV(WebDAV):
             except:
                 raise davvy.exceptions.BadRequest()
 
-            print etree.tostring(dom, pretty_print=True)
+            # print etree.tostring(dom, pretty_print=True)
 
             for prop in dom.find('{DAV:}set').find('{DAV:}prop'):
                 try:
@@ -41,7 +42,7 @@ class CalDAV(WebDAV):
                 except davvy.exceptions.Forbidden:
                     pass
 
-            print "ready"
+            # print "ready"
 
             doc = etree.Element(
                 '{urn:ietf:params:xml:ns:caldav}mkcalendar-response')
@@ -71,7 +72,8 @@ class CalDAV(WebDAV):
         if resource.collection:
             href = href.rstrip('/') + '/'
         multistatus_response_href = davvy.xml_node(
-            '{DAV:}href', scheme + '://' + request.META['HTTP_HOST'] + href)
+            '{DAV:}href', scheme + '://' + request.META['HTTP_HOST'] + href
+        )
         multistatus_response.append(multistatus_response_href)
         # add properties
         multistatus_response_propstat = davvy.xml_node('{DAV:}propstat')
@@ -121,7 +123,7 @@ class CalDAV(WebDAV):
         except:
             raise davvy.exceptions.BadRequest()
 
-        print etree.tostring(dom, pretty_print=True)
+        # print etree.tostring(dom, pretty_print=True)
 
         doc = etree.Element('{DAV:}multistatus')
 
@@ -148,7 +150,7 @@ class CalDAV(WebDAV):
         else:
             raise davvy.exceptions.BadRequest()
 
-        print etree.tostring(doc, pretty_print=True)
+        # print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
