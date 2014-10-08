@@ -13,7 +13,7 @@ class CalDAV(WebDAV):
     dav_extensions = ['calendar-access', 'calendar']
 
     def __init__(self, **kwargs):
-        self.http_method_names += ['mkcalendar', 'report']
+        self.http_method_names = WebDAV.http_method_names + ['mkcalendar', 'report']
         super(CalDAV, self).__init__(**kwargs)
 
     def put(self, request, user, resource_name):
