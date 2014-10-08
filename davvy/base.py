@@ -323,7 +323,7 @@ class WebDAV(View):
         except:
             raise davvy.exceptions.BadRequest()
 
-        print etree.tostring(dom, pretty_print=True)
+        # print etree.tostring(dom, pretty_print=True)
 
         requested_props = []
         props = dom.find('{DAV:}prop')
@@ -333,7 +333,7 @@ class WebDAV(View):
             requested_props.append(prop.tag)
         depth = request.META.get('HTTP_DEPTH', 'infinity')
 
-        print "DEPTH", depth
+        # print "DEPTH", depth
 
         doc = etree.Element('{DAV:}multistatus')
 
@@ -364,7 +364,7 @@ class WebDAV(View):
                 )
                 doc.append(multistatus_response)
 
-        print etree.tostring(doc, pretty_print=True)
+        # print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True),
