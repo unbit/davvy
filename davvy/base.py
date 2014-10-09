@@ -138,7 +138,7 @@ class WebDAV(View):
 
     def move(self, request, user, resource_name):
         resource = self.get_resource(request, user, resource_name)
-        depth = request.META.get('HTTP_DEPTH', 'infinity')
+        # depth = request.META.get('HTTP_DEPTH', 'infinity')
         overwrite = request.META.get('HTTP_OVERWRITE', 'T')
 
         destination = self._get_destination(request, resource_name)
@@ -244,7 +244,8 @@ class WebDAV(View):
     def put(self, request, user, resource_name):
         resource = self.get_resource(request, user, resource_name, create=True)
         resource.content_type = request.META.get(
-            'CONTENT_TYPE', 'application/octet-stream')
+            'CONTENT_TYPE', 'application/octet-stream'
+        )
         resource.size = request.META['CONTENT_LENGTH']
         resource.save()
         self.storage.store(self, request, resource)
@@ -254,23 +255,27 @@ class WebDAV(View):
         cl = int(request.META.get('CONTENT_LENGTH', '0'))
         if cl > 0:
             raise davvy.exceptions.UnsupportedMediaType()
-        resource = self.get_resource(
-            request, user, resource_name, create=True, collection=True, strict=True)
+        self.get_resource(
+            request, user, resource_name, create=True, collection=True, strict=True
+        )
         return davvy.created(request)
 
     def _propfind_response(self, request, href, resource, requested_props):
         response_props = resource.properties(self, request, requested_props)
         multistatus_response = etree.Element('{DAV:}response')
         multistatus_response_href = etree.Element('{DAV:}href')
+
         if resource.collection:
             href = href.rstrip('/') + '/'
         try:
             scheme = request.scheme
         except:
             scheme = request.META['wsgi.url_scheme']
+
         multistatus_response_href.text = scheme + \
             '://' + request.META['HTTP_HOST'] + href
         multistatus_response.append(multistatus_response_href)
+
         for prop in response_props:
             propstat = etree.Element('{DAV:}propstat')
             multistatus_response.append(propstat)
@@ -369,8 +374,8 @@ class WebDAV(View):
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True),
             content_type='text/xml; charset=utf-8'
-
         )
+
         response.status_code = 207
         response.reason_phrase = 'Multi-Status'
         return response
@@ -610,10 +615,10 @@ davvy.register_prop(
     prop_dav_acl,
     davvy.exceptions.Forbidden)
 
-davvy.register_prop(
-    '{DAV:}sync-token',
-    prop_dav_getetag,
-    davvy.exceptions.Forbidden)
+# davvy.register_prop(
+#     '{DAV:}sync-token',
+#     prop_dav_getetag,
+#     davvy.exceptions.Forbidden)
 
 davvy.register_prop(
     '{DAV:}owner',

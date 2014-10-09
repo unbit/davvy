@@ -4,6 +4,9 @@ from django.http import HttpResponseForbidden, HttpResponse
 from django.conf import settings
 from lxml import etree
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class CalDAV(WebDAV):
 
@@ -123,7 +126,7 @@ class CalDAV(WebDAV):
         except:
             raise davvy.exceptions.BadRequest()
 
-        # print etree.tostring(dom, pretty_print=True)
+        print etree.tostring(dom, pretty_print=True)
 
         doc = etree.Element('{DAV:}multistatus')
 
@@ -138,9 +141,12 @@ class CalDAV(WebDAV):
                 request, resource, request.path, 'sync-response'))
             for child in resource.resource_set.all():
                 doc.append(self._multiget_response(
-                    request, child, request.path.rstrip('/') + '/' + child.name, 'sync-response'))
+                    request, child, request.path.rstrip('/') + '/' + child.name, 'sync-response')
+                )
+
             doc.append(davvy.xml_node(
-                '{DAV:}sync-token', prop_dav_calendar_getctag(self, request, resource)))
+                '{DAV:}sync-token', prop_dav_calendar_getctag(self, request, resource))
+            )
         elif dom.tag == '{urn:ietf:params:xml:ns:caldav}calendar-multiget':
             hrefs = dom.iterfind('{DAV:}href')
             for href in hrefs:
@@ -150,7 +156,7 @@ class CalDAV(WebDAV):
         else:
             raise davvy.exceptions.BadRequest()
 
-        # print etree.tostring(doc, pretty_print=True)
+        print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
@@ -202,11 +208,31 @@ def prop_dav_supported_calendar_component_set(dav, request, resource):
     return vevent
 
 
-davvy.register_prop('{urn:ietf:params:xml:ns:caldav}calendar-home-set',
-                    prop_dav_calendar_home_set, davvy.exceptions.Forbidden)
-davvy.register_prop('{http://calendarserver.org/ns/}getctag',
-                    prop_dav_calendar_getctag, davvy.exceptions.Forbidden)
-davvy.register_prop('{urn:ietf:params:xml:ns:caldav}calendar-user-address-set',
-                    prop_dav_calendar_user_address_set, davvy.exceptions.Forbidden)
-davvy.register_prop('{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set',
-                    prop_dav_supported_calendar_component_set, davvy.exceptions.Forbidden)
+davvy.register_prop(
+    '{urn:ietf:params:xml:ns:caldav}calendar-home-set',
+    prop_dav_calendar_home_set,
+    davvy.exceptions.Forbidden
+)
+
+davvy.register_prop(
+    '{http://calendarserver.org/ns/}getctag',
+    prop_dav_calendar_getctag,
+    davvy.exceptions.Forbidden
+)
+
+davvy.register_prop(
+    '{urn:ietf:params:xml:ns:caldav}calendar-user-address-set',
+    prop_dav_calendar_user_address_set,
+    davvy.exceptions.Forbidden
+)
+
+davvy.register_prop(
+    '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set',
+    prop_dav_supported_calendar_component_set,
+    davvy.exceptions.Forbidden
+)
+
+# davvy.register_prop(
+#     '{DAV:}sync-token',
+#     prop_dav_calendar_getctag,
+#     davvy.exceptions.Forbidden)
