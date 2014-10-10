@@ -130,12 +130,10 @@ class WebDAV(View):
 
     def _get_destination(self, request, resource_name):
         destination = request.META['HTTP_DESTINATION']
-        try:
-            scheme = request.scheme
-        except:
-            scheme = request.META['wsgi.url_scheme']
-        base = scheme + '://' + \
-            request.META['HTTP_HOST'] + request.path[:-len(resource_name)]
+        destination = sub("^http[s]*://", "", destination)
+
+        base = request.META['HTTP_HOST'] + request.path[:-len(resource_name)]
+
         if not destination.startswith(base):
             raise davvy.exceptions.BadGateway()
 

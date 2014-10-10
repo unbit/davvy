@@ -6,13 +6,13 @@ A Django application for building WebDAV services
 Installation and Configuration
 ==============================
 
-Just add 'davvy' in `INSTALLED_APPS` and set the directory where you want to store WebDAV files via the `DAVVY_STORAGE_PATH` settings option
+Just add 'davvy' in `INSTALLED_APPS` and set the directory where you want to store WebDAV files via the `DAVVY_STORAGE_PATH` settings option:
 
 ```py
 DAVVY_STORAGE_PATH = '/var/www/davvy'
 ```
 
-Now you can start configuring urls; Davvy is class-based-view based, so you can extend it simply subclassing the WebDAV class (as an example the included CardDAV and CalDAV classes inherit from it).
+Now you can start configuring urls; Davvy is class-view based, so you can extend it by simply subclassing the WebDAV class (as an example the included CardDAV and CalDAV classes inherit from it).
 
 The url regexp must obey to a simple rule:
 
@@ -48,7 +48,7 @@ is the main storage for the CardDAV system (all of the collections will be autom
 
 The `root` parameter in the class-based-view arguments, is required, and you can see it as the 'disk' containing collections and objects.
 
-Internally, `/principals/foobar/photos/2014/summer/1.jpg` will be mapped to `storage/photos/2014/summer/1.jpg` of the user `foobar`. (a root is created for every user on-demand)
+Internally, `/principals/foobar/photos/2014/summer/1.jpg` will be mapped to `storage/photos/2014/summer/1.jpg` of the user `foobar`. (a root is created for every user on-demand).
 
 
 Homes set discovery (required for iOS/OSX clients)
@@ -69,6 +69,42 @@ DAVVY_CALENDAR_HOME_SET_BASE = '/calendars'
 davvy will automatically append /username to every home.
 
 Thanks to this options you will be able to force your client to search for calendars in /calendars/foobar even if it has been configured for /principals/foobar
+
+
+Clients configuration
+=====================
+
+Sadly, client-side configuration varies.
+
+As an example here are provided the configuration samples to be used in OSX Mavericks (10.9) Calendar/Contacts and Mozilla Thunderbird.
+
+OSX Calendar configuration
+--------------------------
+
+Setup a new CalDAV account having the following configuration:
+
+```
+Account Type = Advanced
+User Name = foo
+Password = bar
+Server Address = www.foo.org
+Server Path = /calendars/foo
+Port = 8080
+```
+
+OSX Contacts configuration
+--------------------------
+Setup a new CardDAV account (under other accounts) having the following configuration:
+
+```
+Account Type = Advanced
+User Name = foo
+Password = bar
+Server Address = www.foo.org:8080/addressbook/foo
+```
+
+Mozilla Thunderbird configuration
+--------------------------
 
 Testing
 =======
