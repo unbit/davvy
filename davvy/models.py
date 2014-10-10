@@ -14,7 +14,7 @@ class Resource(models.Model):
         return str(uuid.uuid4())
 
     user = models.ForeignKey(User)
-    groups = models.ManyToManyField(Group, null=True)
+    groups = models.ManyToManyField(Group, null=True, blank=True)
     parent = models.ForeignKey('Resource', null=True, blank=True)
     name = models.CharField(max_length=255)
     collection = models.BooleanField(default=False)
@@ -23,6 +23,7 @@ class Resource(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     size = models.BigIntegerField(default=0)
+    protected = models.BooleanField(default=False)
 
     # pretty ugly, but should help viewing the full names
     def __unicode__(self):

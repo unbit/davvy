@@ -113,6 +113,11 @@ class WebDAV(View):
 
     def delete(self, request, user, resource_name):
         resource = self.get_resource(request, user, resource_name)
+
+        # you can't delete protected resources
+        if resource.protected:
+            return HttpResponseForbidden()
+
         depth = request.META.get('HTTP_DEPTH', 'infinity')
         # return forbidden if there are still items in the collection and
         # Depth is not 'infinity'
