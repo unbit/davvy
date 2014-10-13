@@ -11,10 +11,11 @@ import base64
 import types
 from django.conf import settings
 from storage import FSStorage
-from re import sub
+from re import sub, compile
 from django.core.exceptions import ObjectDoesNotExist
 
 current_user_principals = []
+user_regexp = compile(r"/(?P<user>\w+)/$")
 
 import logging
 logger = logging.getLogger(__name__)
@@ -130,33 +131,41 @@ class WebDAV(View):
 
     def _get_destination(self, request, resource_name):
         destination = request.META['HTTP_DESTINATION']
-        destination = sub("^http[s]*://", "", destination)
+        # ignore http(s) schema
+        destination = sub(r"^http[s]*://", "", destination)
 
         base = request.META['HTTP_HOST'] + request.path[:-len(resource_name)]
 
+        # destination user could be different
+        destination_user = user_regexp.search(destination[:-len(resource_name)]).group('user')
+
+        # remove source user from base
+        base = user_regexp.sub("/", base)
         if not destination.startswith(base):
             raise davvy.exceptions.BadGateway()
 
-        return destination[len(base):].rstrip('/')
+
+        # return destination resource and related user
+        return destination[len(base) + len(destination_user) + 1:].rstrip('/'), destination_user
 
     def move(self, request, user, resource_name):
         resource = self.get_resource(request, user, resource_name)
         # depth = request.META.get('HTTP_DEPTH', 'infinity')
         overwrite = request.META.get('HTTP_OVERWRITE', 'T')
 
-        destination = self._get_destination(request, resource_name)
+        destination, destination_user = self._get_destination(request, resource_name)
 
         result = davvy.created
 
         try:
-            resource2 = self.get_resource(request, user, destination)
+            resource2 = self.get_resource(request, destination_user, destination)
             if overwrite == 'F':
                 raise davvy.exceptions.PreconditionFailed()
             elif overwrite == 'T':
                 result = davvy.nocontent
         except davvy.exceptions.NotFound:
             resource2 = self.get_resource(
-                request, user, destination, create=True)
+                request, destination_user, destination, create=True)
 
         # copy the resource
         resource2.collection = resource.collection
@@ -454,7 +463,8 @@ class WebDAV(View):
         for part in parts[:-1]:
             try:
                 resource_part = Resource.objects.get(
-                    user=resource_user, parent=parent, name=part)
+                    user=resource_user, parent=parent, name=part
+                )
                 if not resource_part.collection:
                     raise Resource.DoesNotExist()
             except Resource.DoesNotExist:
@@ -464,13 +474,15 @@ class WebDAV(View):
         # now check for the requested item
         try:
             resource = Resource.objects.get(
-                user=resource_user, parent=parent, name=parts[-1])
+                user=resource_user, parent=parent, name=parts[-1]
+            )
             if strict and create:
                 raise davvy.exceptions.AlreadyExists()
         except Resource.DoesNotExist:
             if create:
                 resource = Resource.objects.create(
-                    user=resource_user, parent=parent, name=parts[-1], collection=collection)
+                    user=resource_user, parent=parent, name=parts[-1], collection=collection
+                )
             else:
                 raise davvy.exceptions.NotFound()
         return resource
