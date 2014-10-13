@@ -70,7 +70,7 @@ class CardDAV(WebDAV):
         except:
             raise davvy.exceptions.BadRequest()
 
-        print etree.tostring(dom, pretty_print=True)
+        # print etree.tostring(dom, pretty_print=True)
 
         doc = etree.Element('{DAV:}multistatus')
 
@@ -90,7 +90,7 @@ class CardDAV(WebDAV):
         else:
             raise davvy.exceptions.BadRequest()
 
-        print etree.tostring(doc, pretty_print=True)
+        # print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')

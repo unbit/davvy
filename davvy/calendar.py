@@ -20,6 +20,9 @@ class CalDAV(WebDAV):
             ['mkcalendar', 'report']
         super(CalDAV, self).__init__(**kwargs)
 
+    def propfind(self, request, user, resource_name):
+        return super(CalDAV, self)._propfinder(request, user, resource_name, shared=True)
+
     def put(self, request, user, resource_name):
         if not request.META['CONTENT_TYPE'].startswith('text/calendar;') and request.META['CONTENT_TYPE'] != 'text/calendar':
             return HttpResponseForbidden()
@@ -126,7 +129,7 @@ class CalDAV(WebDAV):
         except:
             raise davvy.exceptions.BadRequest()
 
-        print etree.tostring(dom, pretty_print=True)
+        # print etree.tostring(dom, pretty_print=True)
 
         doc = etree.Element('{DAV:}multistatus')
 
@@ -156,7 +159,7 @@ class CalDAV(WebDAV):
         else:
             raise davvy.exceptions.BadRequest()
 
-        print etree.tostring(doc, pretty_print=True)
+        # print etree.tostring(doc, pretty_print=True)
 
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True), content_type='text/xml; charset=utf-8')
