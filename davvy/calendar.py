@@ -170,7 +170,8 @@ class CalDAV(WebDAV):
 
 def prop_dav_calendar_home_set(dav, request, resource):
     current_user_principal = getattr(
-        settings, 'DAVVY_CALENDAR_HOME_SET_BASE', None)
+        settings, 'DAVVY_CALENDAR_HOME_SET_BASE', None
+    )
     if current_user_principal is not None:
         if isinstance(current_user_principal, list) or isinstance(current_user_principal, tuple):
             for base in current_user_principal:
@@ -214,28 +215,19 @@ def prop_dav_supported_calendar_component_set(dav, request, resource):
 davvy.register_prop(
     '{urn:ietf:params:xml:ns:caldav}calendar-home-set',
     prop_dav_calendar_home_set,
-    davvy.exceptions.Forbidden
-)
+    davvy.exceptions.Forbidden)
 
 davvy.register_prop(
     '{http://calendarserver.org/ns/}getctag',
     prop_dav_calendar_getctag,
-    davvy.exceptions.Forbidden
-)
+    davvy.exceptions.Forbidden)
 
 davvy.register_prop(
     '{urn:ietf:params:xml:ns:caldav}calendar-user-address-set',
     prop_dav_calendar_user_address_set,
-    davvy.exceptions.Forbidden
-)
+    davvy.exceptions.Forbidden)
 
 davvy.register_prop(
     '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set',
     prop_dav_supported_calendar_component_set,
-    davvy.exceptions.Forbidden
-)
-
-# davvy.register_prop(
-#     '{DAV:}sync-token',
-#     prop_dav_calendar_getctag,
-#     davvy.exceptions.Forbidden)
+    davvy.exceptions.Forbidden)

@@ -71,17 +71,16 @@ class WebDAV(View):
                 dav_base = ['1']
                 dav_base += getattr(settings, 'DAVVY_EXTENSIONS', [])
                 response['Dav'] = ','.join(dav_base + self.dav_extensions)
-                return response
             except davvy.exceptions.DavException as e:
                 code, phrase = e.status.split(' ', 1)
                 response = HttpResponse(phrase, content_type='text/plain')
                 response.status_code = int(code)
                 response.reason_phrase = phrase
-                return response
+        else:
+            response = HttpResponse('Unathorized', content_type='text/plain')
+            response.status_code = 401
+            response['WWW-Authenticate'] = 'Basic realm="davvy"'
 
-        response = HttpResponse('Unathorized', content_type='text/plain')
-        response.status_code = 401
-        response['WWW-Authenticate'] = 'Basic realm="davvy"'
         return response
 
     def options(self, request, user, resource_name):
@@ -345,12 +344,8 @@ class WebDAV(View):
 
         # print etree.tostring(dom, pretty_print=True)
 
-        requested_props = []
         props = dom.find('{DAV:}prop')
-        if props is None:
-            props = []
-        for prop in props:
-            requested_props.append(prop.tag)
+        requested_props = [prop.tag for prop in props]
         depth = request.META.get('HTTP_DEPTH', 'infinity')
 
         # print "DEPTH", depth
@@ -541,7 +536,8 @@ def prop_dav_creationdate(dav, request, resource):
 
 def prop_dav_current_user_principal(dav, request, resource):
     current_user_principal = getattr(
-        settings, 'DAVVY_CURRENT_USER_PRINCIPAL_BASE', None)
+        settings, 'DAVVY_CURRENT_USER_PRINCIPAL_BASE', None
+    )
     if current_user_principal is not None:
         if isinstance(current_user_principal, list) or isinstance(current_user_principal, tuple):
             for base in current_user_principal:
