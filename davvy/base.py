@@ -365,19 +365,21 @@ class WebDAV(View):
         if depth == '1':
             resources = Resource.objects.filter(parent=resource)
 
-            if shared and resource.progenitor:
+            if shared:  # we skip it if unnecessary
                 # add shared resources from groups
                 shared_resources = Resource.objects.filter(
                     groups=request.user.groups.all()
                 )
 
-                # consider only shared resources having an equal progenitor
+                # consider only shared resources having the same progenitor
+                # so, if resource is a calendar, only calendars, and so on...
+                resource_progenitor = resource.progenitor.name if resource.progenitor else self.root
                 shared_resources_id = [r.id
                                        for r in shared_resources
-                                       if r.progenitor.name == resource.progenitor.name
+                                       if r.progenitor.name == resource_progenitor
                                        ]
 
-                resources |= Resource.objects.filter(
+                resources |= shared_resources.filter(
                     id__in=shared_resources_id)
 
             for resource in resources:
@@ -393,7 +395,7 @@ class WebDAV(View):
                 )
                 doc.append(multistatus_response)
 
-        # print etree.tostring(doc, pretty_print=True)
+        # logger.debug("%s", etree.tostring(doc, pretty_print=True))
 
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True),
