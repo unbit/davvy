@@ -86,6 +86,13 @@ class Resource(models.Model):
         except:
             return ''
 
+    @property
+    def progenitor(self):
+        parent = self.parent
+        while parent and parent.parent:
+            parent = parent.parent
+        return parent
+
     def properties(self, dav, request, requested_props):
         propstat = []
         for prop in requested_props:
