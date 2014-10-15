@@ -136,13 +136,13 @@ class WebDAV(View):
         base = request.META['HTTP_HOST'] + request.path[:-len(resource_name)]
 
         # destination user could be different
-        destination_user = user_regexp.search(destination[:-len(resource_name)]).group('user')
+        destination_user = user_regexp.search(
+            destination[:-len(resource_name)]).group('user')
 
         # remove source user from base
         base = user_regexp.sub("/", base)
         if not destination.startswith(base):
             raise davvy.exceptions.BadGateway()
-
 
         # return destination resource and related user
         return destination[len(base) + len(destination_user) + 1:].rstrip('/'), destination_user
@@ -152,12 +152,14 @@ class WebDAV(View):
         # depth = request.META.get('HTTP_DEPTH', 'infinity')
         overwrite = request.META.get('HTTP_OVERWRITE', 'T')
 
-        destination, destination_user = self._get_destination(request, resource_name)
+        destination, destination_user = self._get_destination(
+            request, resource_name)
 
         result = davvy.created
 
         try:
-            resource2 = self.get_resource(request, destination_user, destination)
+            resource2 = self.get_resource(
+                request, destination_user, destination)
             if overwrite == 'F':
                 raise davvy.exceptions.PreconditionFailed()
             elif overwrite == 'T':
@@ -363,11 +365,20 @@ class WebDAV(View):
         if depth == '1':
             resources = Resource.objects.filter(parent=resource)
 
-            if shared:
+            if shared and resource.progenitor:
                 # add shared resources from groups
-                resources |= Resource.objects.filter(
+                shared_resources = Resource.objects.filter(
                     groups=request.user.groups.all()
                 )
+
+                # consider only shared resources having an equal progenitor
+                shared_resources_id = [r.id
+                                       for r in shared_resources
+                                       if r.progenitor.name == resource.progenitor.name
+                                       ]
+
+                resources |= Resource.objects.filter(
+                    id__in=shared_resources_id)
 
             for resource in resources:
                 multistatus_response = self._propfind_response(
@@ -482,7 +493,8 @@ class WebDAV(View):
         except Resource.DoesNotExist:
             if create:
                 resource = Resource.objects.create(
-                    user=resource_user, parent=parent, name=parts[-1], collection=collection
+                    user=resource_user, parent=parent, name=parts[
+                        -1], collection=collection
                 )
             else:
                 raise davvy.exceptions.NotFound()
