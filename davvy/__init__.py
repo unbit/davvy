@@ -17,6 +17,20 @@ def register_prop(name, handler_get, handler_set):
         props_set[name] = handler_set
 
 
+def retrieve_prop(name):
+    """
+    retrieve a property handler
+    """
+    handler_get, handler_set = None, None
+
+    if name in props_get:
+        handler_get = props_get[name]
+    if name in props_set:
+        handler_set = props_set[name]
+
+    return (name, handler_get, handler_set)
+
+
 def xml_node(name, value=None):
     x = etree.Element(name)
     x.text = value
