@@ -41,7 +41,7 @@ class CalDAV(WebDAV):
             except:
                 raise davvy.exceptions.BadRequest()
 
-            # print etree.tostring(dom, pretty_print=True)
+            logger.debug(etree.tostring(dom, pretty_print=True))
 
             for prop in dom.find('{DAV:}set').find('{DAV:}prop'):
                 try:
@@ -210,7 +210,8 @@ def prop_dav_supported_calendar_component_set(dav, request, resource):
     vjournal.attrib['name'] = 'VJOURNAL'
     components.append(vjournal)
 
-    return components
+    # return components
+    return vevent
 
 
 davvy.register_prop(

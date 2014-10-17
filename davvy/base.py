@@ -43,7 +43,7 @@ class WebDAV(View):
     @csrf_exempt
     def dispatch(self, request, username, *args, **kwargs):
         user = None
-        # REMOTE_USER should be always honoured
+        # REMOTE_USER should be always honored
         if 'REMOTE_USER' in request.META:
             user = User.objects.get(username=request.META['REMOTE_USER'])
         elif 'HTTP_AUTHORIZATION' in request.META:
@@ -104,8 +104,14 @@ class WebDAV(View):
         resource = self.get_resource(request, user, resource_name)
         if resource.collection:
             return HttpResponseForbidden()
-        response = StreamingHttpResponse(self.storage.retrieve(
-            self, request, resource), content_type=resource.content_type)
+
+        response = StreamingHttpResponse(
+            self.storage.retrieve(
+                self, request, resource
+            ),
+            content_type=resource.content_type
+        )
+
         response['Content-Length'] = resource.size
         response[
             'Content-Disposition'] = "attachment; filename=%s" % resource.name
@@ -126,7 +132,7 @@ class WebDAV(View):
             if resource.resource_set.count() > 0:
                 return HttpResponseForbidden()
         resource.delete()
-        return HttpResponse()
+        return HttpResponse(status=204)
 
     def _get_destination(self, request, resource_name):
         destination = request.META['HTTP_DESTINATION']
@@ -135,9 +141,14 @@ class WebDAV(View):
 
         base = request.META['HTTP_HOST'] + request.path[:-len(resource_name)]
 
+        logger.debug("RESOURCE_NAME: %s", resource_name)
+        logger.debug("DESTINATION: %s", destination)
+        logger.debug("STUFF: %s", destination[:-len(resource_name)])
+
         # destination user could be different
         destination_user = user_regexp.search(
-            destination[:-len(resource_name)]).group('user')
+            destination[:-len(resource_name)]
+        ).group('user')
 
         # remove source user from base
         base = user_regexp.sub("/", base)
@@ -344,13 +355,11 @@ class WebDAV(View):
         except:
             raise davvy.exceptions.BadRequest()
 
-        # print etree.tostring(dom, pretty_print=True)
+        # logger.debug(etree.tostring(dom, pretty_print=True))
 
         props = dom.find('{DAV:}prop')
         requested_props = [prop.tag for prop in props]
         depth = request.META.get('HTTP_DEPTH', 'infinity')
-
-        # print "DEPTH", depth
 
         doc = etree.Element('{DAV:}multistatus')
 
@@ -395,7 +404,7 @@ class WebDAV(View):
                 )
                 doc.append(multistatus_response)
 
-        # logger.debug("%s", etree.tostring(doc, pretty_print=True))
+        logger.debug("%s", etree.tostring(doc, pretty_print=True))
 
         response = HttpResponse(
             etree.tostring(doc, pretty_print=True),
