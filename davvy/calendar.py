@@ -31,7 +31,8 @@ class CalDAV(WebDAV):
     def mkcalendar(self, request, user, resource_name):
 
         resource = self.get_resource(
-            request, user, resource_name, create=True, collection=True, strict=True)
+            request, user, resource_name, create=True, collection=True, strict=True
+        )
 
         cl = int(request.META.get('CONTENT_LENGTH', '0'))
         if cl > 0:
@@ -209,7 +210,7 @@ def prop_dav_supported_calendar_component_set(dav, request, resource):
     vjournal.attrib['name'] = 'VJOURNAL'
     components.append(vjournal)
 
-    return vevent
+    return components
 
 
 davvy.register_prop(
