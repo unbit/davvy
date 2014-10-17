@@ -90,9 +90,9 @@ from davvy.wellknown import WellKnownDAV
 
 urlpatterns = patterns('',
     # ...
-    url(r'^.well-known/caldav/$', 
+    url(r'^.well[-_]?known/caldav/?$', 
         WellKnownDAV.as_view(root='calendars')),
-    url(r'^.well-known/carddav/$', 
+    url(r'^.well[-_]?known/carddav/?$', 
         WellKnownDAV.as_view(root='addressbook001')),
     # ...
 )
