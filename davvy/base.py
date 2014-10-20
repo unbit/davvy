@@ -134,29 +134,28 @@ class WebDAV(View):
         resource.delete()
         return HttpResponse(status=204)
 
-    def _get_destination(self, request, resource_name):
+    def _get_destination(self, request, user, resource_name):
         destination = request.META['HTTP_DESTINATION']
         # ignore http(s) schema
         destination = sub(r"^http[s]*://", "", destination)
 
         base = request.META['HTTP_HOST'] + request.path[:-len(resource_name)]
 
-        logger.debug("RESOURCE_NAME: %s", resource_name)
-        logger.debug("DESTINATION: %s", destination)
-        logger.debug("STUFF: %s", destination[:-len(resource_name)])
+        try:
+            # destination user could be different
+            destination_user = user_regexp.search(
+                destination[:-len(resource_name)]
+            ).group('user')
 
-        # destination user could be different
-        destination_user = user_regexp.search(
-            destination[:-len(resource_name)]
-        ).group('user')
-
-        # remove source user from base
-        base = user_regexp.sub("/", base)
-        if not destination.startswith(base):
-            raise davvy.exceptions.BadGateway()
-
-        # return destination resource and related user
-        return destination[len(base) + len(destination_user) + 1:].rstrip('/'), destination_user
+            # remove source user from base
+            base = user_regexp.sub("/", base)
+            if not destination.startswith(base):
+                raise davvy.exceptions.BadGateway()
+        except AttributeError:  # if something goes wrong while catching the user
+            destination_user = user
+        finally:
+            # return destination resource and related user
+            return destination[len(base) + len(destination_user) + 1:].rstrip('/'), destination_user
 
     def move(self, request, user, resource_name):
         resource = self.get_resource(request, user, resource_name)
@@ -164,7 +163,7 @@ class WebDAV(View):
         overwrite = request.META.get('HTTP_OVERWRITE', 'T')
 
         destination, destination_user = self._get_destination(
-            request, resource_name)
+            request, user, resource_name)
 
         result = davvy.created
 
@@ -355,7 +354,7 @@ class WebDAV(View):
         except:
             raise davvy.exceptions.BadRequest()
 
-        # logger.debug(etree.tostring(dom, pretty_print=True))
+        logger.debug(etree.tostring(dom, pretty_print=True))
 
         props = dom.find('{DAV:}prop')
         requested_props = [prop.tag for prop in props]
