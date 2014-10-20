@@ -37,7 +37,7 @@ class WellKnownDAV(WebDAV):
             elif self.root == "addressbook001":
                 from davvy.addressbook import prop_dav_addressbook_home_set as prop_dav_resource_home_set
             else:
-                prop_dav_resource_home_set = None
+                from davvy.base import prop_dav_current_user_principal as prop_dav_resource_home_set
 
             old_cup_prop = None
             if prop_dav_resource_home_set:
