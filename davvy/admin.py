@@ -4,7 +4,7 @@ from django import forms
 
 
 class PropInline(admin.TabularInline):
-	fields = ['resource', 'name']
+	fields = ['resource', 'name', 'value']
 	model = Prop
 
 
