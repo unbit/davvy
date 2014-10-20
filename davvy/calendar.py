@@ -41,7 +41,7 @@ class CalDAV(WebDAV):
             except:
                 raise davvy.exceptions.BadRequest()
 
-            logger.debug(etree.tostring(dom, pretty_print=True))
+            # logger.debug(etree.tostring(dom, pretty_print=True))
 
             for prop in dom.find('{DAV:}set').find('{DAV:}prop'):
                 try:
@@ -193,24 +193,6 @@ def prop_dav_calendar_user_address_set(dav, request, resource):
     yield davvy.xml_node('{DAV:}href', 'mailto:' + request.user.email)
 
 
-# def prop_dav_supported_calendar_component_set(dav, request, resource):
-#     components = []
-
-#     vevent = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}comp')
-#     vevent.attrib['name'] = 'VEVENT'
-#     components.append(vevent)
-
-#     vtodo = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}comp')
-#     vtodo.attrib['name'] = 'VTODO'
-#     components.append(vtodo)
-
-#     vjournal = davvy.xml_node('{urn:ietf:params:xml:ns:caldav}comp')
-#     vjournal.attrib['name'] = 'VJOURNAL'
-#     components.append(vjournal)
-
-#     return components
-
-
 davvy.register_prop(
     '{urn:ietf:params:xml:ns:caldav}calendar-home-set',
     prop_dav_calendar_home_set,
@@ -224,14 +206,4 @@ davvy.register_prop(
 davvy.register_prop(
     '{urn:ietf:params:xml:ns:caldav}calendar-user-address-set',
     prop_dav_calendar_user_address_set,
-    davvy.exceptions.Forbidden)
-
-# davvy.register_prop(
-#     '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set',
-#     prop_dav_supported_calendar_component_set,
-#     davvy.exceptions.Forbidden)
-
-davvy.register_prop(
-    '{urn:ietf:params:xml:ns:caldav}calendar-home-set',
-    prop_dav_calendar_home_set,
     davvy.exceptions.Forbidden)

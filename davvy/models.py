@@ -51,6 +51,7 @@ class Resource(models.Model):
             if value is not None:
                 return value
             raise davvy.exceptions.Forbidden()
+
         try:
             model_prop = self.prop_set.get(name=name)
             if model_prop.is_xml:
@@ -69,12 +70,18 @@ class Resource(models.Model):
                 prop = self.prop_set.get(name=name)
             except Prop.DoesNotExist:
                 prop = self.prop_set.create(name=name)
-            if value.text is not None:
+
+            if len(value):
+                prop.value = '\n'.join(
+                    [etree.tostring(children, pretty_print=True)
+                     for children
+                     in value]
+                )
+                prop.is_xml = True
+            elif value.text is not None:
                 prop.value = value.text
                 prop.is_xml = False
-            elif hasattr(value, 'get_children') and len(value.get_children()) > 0:
-                prop.value = etree.tostring(value, pretty_print=True)
-                prop.is_xml = True
+
             prop.save()
         return self.get_prop(dav, request, name)
 
