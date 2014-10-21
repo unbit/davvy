@@ -76,6 +76,20 @@ Remember: davvy will automatically append /username to every home.
 
 Thanks to this options you will be able to force your client to search for calendars in /calendars/foobar even if it has been configured for /principals/foobar.
 
+Furthermore, Apple clients will sporadically send PROPFIND requests to your server root.
+
+As a consequence, and in order to avoid unpleasant 404 errors, you could add to your `urlpatterns` the following lines:
+
+```py
+from davvy.wellknown import WellKnownDAV
+
+urlpatterns = patterns('',
+    # ...
+    url(r'^$', 
+        WellKnownDAV.as_view(root='storage')),
+    # ...
+)
+``` 
 
 ## Apple's custom autodiscovery
 
