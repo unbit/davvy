@@ -1,15 +1,16 @@
-from django.db import models
-from django.contrib.auth.models import User, Group
 import uuid
-import davvy
-import davvy.exceptions
+
+from django.contrib.auth.models import User, Group
+from django.db import models
 from lxml import etree
 
-# Create your models here.
+import davvy
+import davvy.exceptions
 
 
 class Resource(models.Model):
 
+    @staticmethod
     def generate_uuid():
         return str(uuid.uuid4())
 

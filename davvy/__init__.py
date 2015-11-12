@@ -28,7 +28,7 @@ def retrieve_prop(name):
     if name in props_set:
         handler_set = props_set[name]
 
-    return (name, handler_get, handler_set)
+    return name, handler_get, handler_set
 
 
 def xml_node(name, value=None):

@@ -1,23 +1,26 @@
-from django.http import StreamingHttpResponse, HttpResponse, HttpResponseForbidden
-from django.views.generic.base import View
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
-import davvy
-from lxml import etree
-from django.utils.http import http_date
-from davvy.models import Resource
 import base64
+import logging
 import types
-from django.conf import settings
-from storage import FSStorage
 from re import sub, compile
+
+from django.conf import settings
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import StreamingHttpResponse, HttpResponse, HttpResponseForbidden
+from django.utils.http import http_date
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic.base import View
+from lxml import etree
+
+import davvy
+import davvy.exceptions
+from davvy.models import Resource
+from davvy.storage import FSStorage
 
 current_user_principals = []
 user_regexp = compile(r"/(?P<user>\w+)/$")
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +38,31 @@ class WebDAV(View):
     root = None
     storage = None
 
+    @staticmethod
+    def _get_destination(request, user, resource_name):
+        destination = request.META['HTTP_DESTINATION']
+        # ignore http(s) schema
+        destination = sub(r"^http[s]*://", "", destination)
+
+        base = request.META['HTTP_HOST'] + request.path[:-len(resource_name)]
+
+        destination_user = user
+        try:
+            # destination user could be different
+            destination_user = user_regexp.search(
+                destination[:-len(resource_name)]
+            ).group('user')
+
+            # remove source user from base
+            base = user_regexp.sub("/", base)
+            if not destination.startswith(base):
+                raise davvy.exceptions.BadGateway()
+        except AttributeError:  # if something goes wrong while catching the user
+            destination_user = user
+        finally:
+            # return destination resource and related user
+            return destination[len(base) + len(destination_user) + 1:].rstrip('/'), destination_user
+
     def __init__(self, **kwargs):
         super(WebDAV, self).__init__(**kwargs)
         if self.storage is None:
@@ -50,8 +78,8 @@ class WebDAV(View):
             auth = request.META['HTTP_AUTHORIZATION'].split()
             if len(auth) == 2:
                 if auth[0].lower() == "basic":
-                    uname, passwd = base64.b64decode(auth[1]).split(':')
-                    user = authenticate(username=uname, password=passwd)
+                    username, password = base64.b64decode(auth[1]).split(':')
+                    user = authenticate(username=username, password=password)
 
         def _check_group_sharing(user, sharing_user):
             try:
@@ -77,7 +105,7 @@ class WebDAV(View):
                 response.status_code = int(code)
                 response.reason_phrase = phrase
         else:
-            response = HttpResponse('Unathorized', content_type='text/plain')
+            response = HttpResponse('Unauthorized', content_type='text/plain')
             response.status_code = 401
             response['WWW-Authenticate'] = 'Basic realm="davvy"'
 
@@ -133,29 +161,6 @@ class WebDAV(View):
                 return HttpResponseForbidden()
         resource.delete()
         return HttpResponse(status=204)
-
-    def _get_destination(self, request, user, resource_name):
-        destination = request.META['HTTP_DESTINATION']
-        # ignore http(s) schema
-        destination = sub(r"^http[s]*://", "", destination)
-
-        base = request.META['HTTP_HOST'] + request.path[:-len(resource_name)]
-
-        try:
-            # destination user could be different
-            destination_user = user_regexp.search(
-                destination[:-len(resource_name)]
-            ).group('user')
-
-            # remove source user from base
-            base = user_regexp.sub("/", base)
-            if not destination.startswith(base):
-                raise davvy.exceptions.BadGateway()
-        except AttributeError:  # if something goes wrong while catching the user
-            destination_user = user
-        finally:
-            # return destination resource and related user
-            return destination[len(base) + len(destination_user) + 1:].rstrip('/'), destination_user
 
     def move(self, request, user, resource_name):
         resource = self.get_resource(request, user, resource_name)
@@ -254,7 +259,7 @@ class WebDAV(View):
         overwrite = request.META.get('HTTP_OVERWRITE', 'T')
         depth = request.META.get('HTTP_DEPTH', 'infinity')
 
-        destination = self._get_destination(request, resource_name)
+        destination = self._get_destination(request, user, resource_name)
 
         if resource.collection and depth == 'infinity':
             result = self._copy_coll(request, resource, destination, overwrite)
@@ -305,6 +310,7 @@ class WebDAV(View):
             tag, value, status = prop
             prop_element = etree.Element('{DAV:}prop')
             prop_element_item = etree.Element(tag)
+
             if isinstance(value, etree._Element):
                 prop_element_item.append(value)
             elif isinstance(value, list) or isinstance(value, types.GeneratorType):
@@ -313,6 +319,7 @@ class WebDAV(View):
             else:
                 if value != '':
                     prop_element_item.text = value
+
             prop_element.append(prop_element_item)
             propstat.append(prop_element)
             propstat_status = etree.Element('{DAV:}status')
@@ -322,7 +329,8 @@ class WebDAV(View):
 
         return multistatus_response
 
-    def _proppatch_response(self, request, href, resource, requested_props):
+    @staticmethod
+    def _proppatch_response(request, href, resource, requested_props):
         multistatus_response = etree.Element('{DAV:}response')
         multistatus_response_href = etree.Element('{DAV:}href')
         if resource.collection:
@@ -394,8 +402,8 @@ class WebDAV(View):
                 multistatus_response = self._propfind_response(
                     request,
                     sub(
-                        r"%s$" % (user),
-                        "%s" % (resource.user),
+                        r"%s$" % user,
+                        "%s" % resource.user,
                         request.path.rstrip("/")
                     ) + "/" + resource.name,
                     resource,
@@ -460,13 +468,8 @@ class WebDAV(View):
         return response
 
     def _get_root(self, user):
-        try:
-            resource = Resource.objects.get(
-                name=self.root, user=user, parent=None, collection=True)
-        except:
-            resource = Resource.objects.create(
-                name=self.root, user=user, parent=None, collection=True)
-        return resource
+        return Resource.objects.get_or_create(
+            name=self.root, user=user, parent=None, collection=True)[0]
 
     def get_resource(self, request, user, name, create=False, collection=False, strict=False):
         resource_user = User.objects.get(username=user)
@@ -589,7 +592,7 @@ def prop_dav_acl(dav, request, resource):
     ace = davvy.xml_node('{DAV:}ace')
     ace_principal = davvy.xml_node('{DAV:}principal')
     ace_principal.append(davvy.xml_node('{DAV:}all'))
-    #principals = prop_dav_current_user_principal(dav, request, resource)
+    # principals = prop_dav_current_user_principal(dav, request, resource)
     # for principal in principals:
     #    ace_principal.append(principal)
     ace.append(ace_principal)

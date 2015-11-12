@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 import base64
 
 import davvy
+import davvy.exceptions
 from davvy.base import WebDAV
 
 import logging
@@ -24,14 +25,14 @@ class WellKnownDAV(WebDAV):
             auth = request.META['HTTP_AUTHORIZATION'].split()
             if len(auth) == 2:
                 if auth[0].lower() == "basic":
-                    uname, passwd = base64.b64decode(auth[1]).split(':')
-                    user = authenticate(username=uname, password=passwd)
+                    username, password = base64.b64decode(auth[1]).split(':')
+                    user = authenticate(username=username, password=password)
 
-        if (user and user.is_active):
+        if user and user.is_active:
             login(request, user)
             request.user = user
 
-            # choose the correct current-user-principal handler (calendars/addressbooks)
+            # choose the correct current-user-principal handler (calendars/address-books)
             if self.root == "calendars":
                 from davvy.calendar import prop_dav_calendar_home_set as prop_dav_resource_home_set
             elif self.root == "addressbook001":
@@ -74,7 +75,7 @@ class WellKnownDAV(WebDAV):
                     )
 
         else:
-            response = HttpResponse('Unathorized', content_type='text/plain')
+            response = HttpResponse('Unauthorized', content_type='text/plain')
             response.status_code = 401
             response['WWW-Authenticate'] = 'Basic realm="davvy"'
 

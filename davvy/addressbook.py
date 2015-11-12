@@ -1,8 +1,10 @@
-import davvy
-from davvy.base import WebDAV
-from django.http import HttpResponseForbidden, HttpResponse
 from django.conf import settings
+from django.http import HttpResponseForbidden, HttpResponse
 from lxml import etree
+
+import davvy
+import davvy.exceptions
+from davvy.base import WebDAV
 
 
 class CardDAV(WebDAV):

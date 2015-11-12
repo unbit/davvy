@@ -9,8 +9,6 @@ import base64
 from django.contrib.sessions.middleware import SessionMiddleware
 import os.path
 
-# Create your tests here.
-
 
 @override_settings(DAVVY_STORAGE_PATH='/tmp')
 class WebDAVTestCase(TestCase):

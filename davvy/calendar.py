@@ -1,16 +1,19 @@
-import davvy
-from davvy.base import WebDAV
-from django.http import HttpResponseForbidden, HttpResponse
+import logging
+
 from django.conf import settings
+from django.http import HttpResponseForbidden, HttpResponse
 from lxml import etree
 
-import logging
+import davvy
+import davvy.exceptions
+from davvy.base import WebDAV
+
 logger = logging.getLogger(__name__)
 
 
 class CalDAV(WebDAV):
 
-    #collection_type = ['{urn:ietf:params:xml:ns:caldav}calendar', '{DAV:}collection']
+    # collection_type = ['{urn:ietf:params:xml:ns:caldav}calendar', '{DAV:}collection']
     subcollection_type = [
         '{urn:ietf:params:xml:ns:caldav}calendar', '{DAV:}collection']
     dav_extensions = ['calendar-access', 'calendar']
@@ -24,7 +27,8 @@ class CalDAV(WebDAV):
         return super(CalDAV, self)._propfinder(request, user, resource_name, shared=True)
 
     def put(self, request, user, resource_name):
-        if not request.META['CONTENT_TYPE'].startswith('text/calendar;') and request.META['CONTENT_TYPE'] != 'text/calendar':
+        if not request.META['CONTENT_TYPE'].startswith('text/calendar;') \
+                and request.META['CONTENT_TYPE'] != 'text/calendar':
             return HttpResponseForbidden()
         return super(CalDAV, self).put(request, user, resource_name)
 
@@ -115,7 +119,8 @@ class CalDAV(WebDAV):
 
         return multistatus_response
 
-    def get_href(self, href, resource_name):
+    @staticmethod
+    def get_href(href, resource_name):
         # find first occurrence of resource_name
         pos = href.find(resource_name)
         return href[pos:]
