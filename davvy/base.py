@@ -297,7 +297,7 @@ class WebDAV(View):
             href = href.rstrip('/') + '/'
         try:
             scheme = request.scheme
-        except:
+        except AttributeError:
             scheme = request.META['wsgi.url_scheme']
 
         multistatus_response_href.text = scheme + \

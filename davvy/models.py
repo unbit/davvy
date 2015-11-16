@@ -91,7 +91,7 @@ class Resource(models.Model):
         try:
             prop = self.prop_set.get(name='{DAV:}displayname')
             return prop.value
-        except:
+        except AttributeError:
             return ''
 
     @property
