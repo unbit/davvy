@@ -351,10 +351,7 @@ class WebDAV(View):
 
         return multistatus_response
 
-    def propfind(self, request, user, resource_name):
-        return self._propfinder(request, user, resource_name)
-
-    def _propfinder(self, request, user, resource_name, shared=False):
+    def propfind(self, request, user, resource_name, shared=False):
         resource = self.get_resource(request, user, resource_name)
 
         try:

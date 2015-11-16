@@ -24,7 +24,7 @@ class CalDAV(WebDAV):
         super(CalDAV, self).__init__(**kwargs)
 
     def propfind(self, request, user, resource_name):
-        return super(CalDAV, self)._propfinder(request, user, resource_name, shared=True)
+        return super(CalDAV, self).propfind(request, user, resource_name, shared=True)
 
     def put(self, request, user, resource_name):
         if not request.META['CONTENT_TYPE'].startswith('text/calendar;') \
