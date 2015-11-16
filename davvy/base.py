@@ -313,7 +313,8 @@ class WebDAV(View):
 
             if isinstance(value, etree._Element):
                 prop_element_item.append(value)
-            elif isinstance(value, list) or isinstance(value, types.GeneratorType):
+            elif isinstance(value, list) \
+                    or isinstance(value, types.GeneratorType):
                 for item in value:
                     prop_element_item.append(item)
             else:
@@ -354,15 +355,26 @@ class WebDAV(View):
     def propfind(self, request, user, resource_name, shared=False):
         resource = self.get_resource(request, user, resource_name)
 
-        try:
-            dom = etree.fromstring(request.read())
-        except:
-            raise davvy.exceptions.BadRequest()
+        content = request.read()
 
-        logger.debug(etree.tostring(dom, pretty_print=True))
+        if content:
+            try:
+                dom = etree.fromstring(content)
+            except:
+                logger.error("Raising bad request.")
+                raise davvy.exceptions.BadRequest()
 
-        props = dom.find('{DAV:}prop')
-        requested_props = [prop.tag for prop in props]
+            logger.debug(etree.tostring(dom, pretty_print=True))
+
+            if dom.find('{DAV:}allprop') is not None:
+                requested_props = None  # allprop
+            else:
+                props = dom.find('{DAV:}prop')
+                requested_props = [prop.tag for prop in props]
+        else:
+            # Equal to allprop request.
+            requested_props = None
+
         depth = request.META.get('HTTP_DEPTH', 'infinity')
 
         doc = etree.Element('{DAV:}multistatus')

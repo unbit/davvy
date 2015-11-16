@@ -103,6 +103,15 @@ class Resource(models.Model):
 
     def properties(self, dav, request, requested_props):
         propstat = []
+
+        # If None is an allprop request.
+        if requested_props is None:
+            requested_props = {
+                n for n in self.prop_set.all().values_list("name", flat=True)
+            } | {
+                n for n in davvy.props_get.keys()
+            }
+
         for prop in requested_props:
             try:
                 value = self.get_prop(dav, request, prop)
