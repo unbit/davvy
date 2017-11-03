@@ -275,7 +275,9 @@ class WebDAV(View):
         return davvy.created(request)
 
     def mkcol(self, request, user, resource_name):
-        cl = int(request.META.get('CONTENT_LENGTH', '0'))
+        cl = 0
+        if 'CONTENT_LENGTH' in request.META and len(request.META['CONTENT_LENGTH']) > 0:
+            cl = int(request.META['CONTENT_LENGTH'])
         if cl > 0:
             raise davvy.exceptions.UnsupportedMediaType()
         self.get_resource(
